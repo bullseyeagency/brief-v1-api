@@ -202,6 +202,7 @@ export async function POST(request: NextRequest) {
     } catch {
       deliverables = {
         websiteSummary: 'Failed to generate website summary.',
+        creativeBrief: 'Failed to generate creative brief.',
         facebookCampaigns: 'Failed to generate Facebook campaigns.',
         tvCommercial30s: 'Failed to generate TV commercial.',
       };
