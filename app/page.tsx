@@ -101,18 +101,10 @@ export default function Home() {
       setError('Please enter a URL');
       return;
     }
-    if (!settings) {
-      setError('Please configure your settings first');
-      return;
-    }
 
-    const { briefModel, keys } = settings;
-    const apiKey = keys[briefModel.provider];
-
-    if (!apiKey) {
-      setError(`Please add your ${PROVIDER_CONFIGS[briefModel.provider].name} API key in Settings`);
-      return;
-    }
+    // Use client settings if available, otherwise use server-side keys
+    const briefModel = settings?.briefModel;
+    const apiKey = settings?.keys?.[briefModel?.provider || 'openai'];
 
     try {
       setState('processing');
@@ -149,7 +141,11 @@ export default function Home() {
       updateProgress('ai-brief-start');
       await new Promise(r => setTimeout(r, 200));
       updateProgress('ai-brief-processing');
-      addLog(`Using ${PROVIDER_CONFIGS[briefModel.provider].name} - ${briefModel.model}`);
+      if (briefModel) {
+        addLog(`Using ${PROVIDER_CONFIGS[briefModel.provider].name} - ${briefModel.model}`);
+      } else {
+        addLog('Using server-side AI provider');
+      }
 
       logInfo('Sending brief generation request...');
       const generateResponse = await debugFetch('/api/generate', {
@@ -157,8 +153,8 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           crawlResult,
-          provider: briefModel.provider,
-          model: briefModel.model,
+          provider: briefModel?.provider,
+          model: briefModel?.model,
           apiKey,
         }),
       });
@@ -248,12 +244,18 @@ export default function Home() {
                   Please <a href="/settings" className="font-medium underline">configure your settings</a> before generating a brief.
                 </p>
               </div>
-            ) : (
+            ) : settings ? (
               <div className="mb-6 p-3 bg-gray-100 rounded-lg flex items-center justify-between">
                 <span className="text-sm text-gray-600">
                   Using <span className="font-medium">{PROVIDER_CONFIGS[settings.briefModel.provider].name}</span> for brief generation
                 </span>
                 <a href="/settings" className="text-xs text-blue-600 hover:underline">Change</a>
+              </div>
+            ) : (
+              <div className="mb-6 p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  Using server-side AI configuration. <a href="/settings" className="font-medium underline">Configure custom settings</a> (optional)
+                </p>
               </div>
             )}
 

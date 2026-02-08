@@ -8,9 +8,9 @@ import { supabase } from '@/lib/supabase';
 
 interface GenerateRequest {
   crawlResult: CrawlResult;
-  provider: AIProvider;
+  provider?: AIProvider;
   model?: string;
-  apiKey: string;
+  apiKey?: string;
 }
 
 function parseJsonResponse(content: string): unknown {
@@ -37,10 +37,56 @@ export async function POST(request: NextRequest) {
 
   try {
     const body: GenerateRequest = await request.json();
-    const { crawlResult, provider, model, apiKey } = body;
+    let { crawlResult, provider, model, apiKey } = body;
 
-    if (!crawlResult || !provider || !apiKey) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!crawlResult) {
+      return NextResponse.json({ error: 'Missing required field: crawlResult' }, { status: 400 });
+    }
+
+    // If no apiKey provided, use server-side keys
+    if (!apiKey) {
+      const openaiKey = process.env.OPENAI_API_KEY;
+      const claudeKey = process.env.ANTHROPIC_API_KEY;
+      const geminiKey = process.env.GEMINI_API_KEY;
+
+      if (!openaiKey && !claudeKey && !geminiKey) {
+        return NextResponse.json(
+          { error: 'No API keys configured. Please add keys in settings or configure server environment variables.' },
+          { status: 500 }
+        );
+      }
+
+      // Choose provider based on available keys
+      if (!provider) {
+        if (openaiKey) {
+          provider = 'openai';
+          apiKey = openaiKey;
+          model = model || 'gpt-4o';
+        } else if (claudeKey) {
+          provider = 'claude';
+          apiKey = claudeKey;
+          model = model || 'claude-sonnet-4-20250514';
+        } else {
+          provider = 'gemini';
+          apiKey = geminiKey!;
+          model = model || 'gemini-2.0-flash-exp';
+        }
+      } else {
+        // Provider specified, get matching key
+        const keys: Record<AIProvider, string | undefined> = {
+          openai: openaiKey,
+          claude: claudeKey,
+          manus: process.env.MANUS_API_KEY,
+          gemini: geminiKey,
+        };
+        apiKey = keys[provider];
+        if (!apiKey) {
+          return NextResponse.json(
+            { error: `${provider} API key not configured on server` },
+            { status: 500 }
+          );
+        }
+      }
     }
 
     // Step 0: Clean and normalize crawl data
@@ -54,6 +100,14 @@ export async function POST(request: NextRequest) {
       crawlResult.mainUrl,
       crawlResult.crawledAt
     );
+
+    // Ensure provider and apiKey are set
+    if (!provider || !apiKey) {
+      return NextResponse.json(
+        { error: 'Failed to determine AI provider' },
+        { status: 500 }
+      );
+    }
 
     // Step 1: Generate the creative brief
     const systemPrompt = buildSystemPrompt();
