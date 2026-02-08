@@ -1,6 +1,8 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import { notFound } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
-import { V1GeneratedBrief } from '@/lib/supabase';
+import { Loader2 } from 'lucide-react';
 import { CreativeBrief, Deliverables } from '@/lib/types';
 import BriefViewer from '@/components/BriefViewer';
 import DeliverablesViewer from '@/components/DeliverablesViewer';
@@ -9,33 +11,206 @@ interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
-async function getBrief(slug: string): Promise<V1GeneratedBrief | null> {
-  const { data, error } = await supabase
-    .from('v1_generated_briefs')
-    .select('*')
-    .eq('public_slug', slug)
-    .eq('is_public', true)
-    .single();
-
-  if (error) {
-    console.error('Error fetching brief:', error);
-    return null;
-  }
-
-  return data;
+interface BriefData {
+  id: string;
+  source_url: string;
+  brief: CreativeBrief | null;
+  deliverables: Deliverables | null;
+  provider: string;
+  model: string;
+  created_at: string;
+  generation_time_ms?: number;
+  status: 'processing' | 'completed' | 'failed';
+  progress: number;
+  current_task?: string;
+  logs: string[];
+  error_message?: string;
 }
 
-export default async function BriefPage({ params }: PageProps) {
-  const { slug } = await params;
-  const briefData = await getBrief(slug);
+export default function BriefPage({ params }: PageProps) {
+  const [slug, setSlug] = useState<string | null>(null);
+  const [briefData, setBriefData] = useState<BriefData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!briefData) {
+  // Unwrap params
+  useEffect(() => {
+    params.then((p) => setSlug(p.slug));
+  }, [params]);
+
+  // Fetch initial brief data
+  useEffect(() => {
+    if (!slug) return;
+
+    async function fetchBrief() {
+      try {
+        const response = await fetch(`/api/brief/${slug}`);
+        if (!response.ok) {
+          if (response.status === 404) {
+            setError('not-found');
+          } else {
+            throw new Error('Failed to load brief');
+          }
+          return;
+        }
+
+        const data = await response.json();
+        setBriefData(data);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error loading brief:', err);
+        setError('Failed to load brief');
+        setLoading(false);
+      }
+    }
+
+    fetchBrief();
+  }, [slug]);
+
+  // Poll for status updates if processing
+  useEffect(() => {
+    if (!slug || !briefData || briefData.status !== 'processing') return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/brief/${slug}/status`);
+        if (response.ok) {
+          const status = await response.json();
+
+          setBriefData((prev) => prev ? {
+            ...prev,
+            status: status.status,
+            progress: status.progress,
+            current_task: status.currentTask,
+            logs: status.logs,
+            error_message: status.errorMessage,
+          } : null);
+
+          // Stop polling if completed or failed
+          if (status.status === 'completed' || status.status === 'failed') {
+            // Reload full brief data
+            const fullResponse = await fetch(`/api/brief/${slug}`);
+            if (fullResponse.ok) {
+              const fullData = await response.json();
+              setBriefData(fullData);
+            }
+            clearInterval(pollInterval);
+          }
+        }
+      } catch (err) {
+        console.error('Error polling status:', err);
+      }
+    }, 10000); // Poll every 10 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [slug, briefData?.status]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+      </div>
+    );
+  }
+
+  if (error === 'not-found') {
     notFound();
   }
 
-  const brief = briefData.brief as CreativeBrief;
-  const deliverables = briefData.deliverables as Deliverables;
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Error</h1>
+          <p className="text-gray-600">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
+  if (!briefData) {
+    return null;
+  }
+
+  // Show processing UI
+  if (briefData.status === 'processing') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+        <div className="max-w-3xl mx-auto px-4 py-12">
+          <div className="bg-white rounded-2xl shadow-lg p-8">
+            {/* Progress Header */}
+            <div className="flex items-center gap-4 mb-6">
+              <Loader2 className="w-8 h-8 text-primary animate-spin" />
+              <div className="flex-1">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  {briefData.current_task || 'Processing...'}
+                </h2>
+                <p className="text-sm text-gray-500">Processing {briefData.source_url}</p>
+              </div>
+              <span className="text-2xl font-bold text-primary">{briefData.progress}%</span>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="mb-6">
+              <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-blue-500 to-primary transition-all duration-500 ease-out"
+                  style={{ width: `${briefData.progress}%` }}
+                />
+              </div>
+              <div className="flex justify-between mt-2 text-xs text-gray-500">
+                <span>Crawling</span>
+                <span>Brief Generation</span>
+                <span>Deliverables</span>
+              </div>
+            </div>
+
+            {/* Task Log Window */}
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <div className="bg-gray-100 px-4 py-2 border-b border-gray-200">
+                <span className="text-sm font-medium text-gray-700">Task Log</span>
+              </div>
+              <div className="bg-gray-900 p-4 h-48 overflow-auto font-mono text-sm">
+                {briefData.logs.map((log, i) => (
+                  <div key={i} className="text-green-400">
+                    {log}
+                  </div>
+                ))}
+                {briefData.logs.length === 0 && (
+                  <span className="text-gray-500">Starting...</span>
+                )}
+              </div>
+            </div>
+
+            {/* Estimated Time */}
+            <p className="text-center text-sm text-gray-500 mt-4">
+              Estimated time remaining: ~
+              {briefData.progress < 40 ? '60' : briefData.progress < 75 ? '30' : '10'} seconds
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show failed state
+  if (briefData.status === 'failed') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+        <div className="max-w-3xl mx-auto px-4 py-12">
+          <div className="bg-white rounded-2xl shadow-lg p-8">
+            <h1 className="text-2xl font-bold text-red-600 mb-4">Generation Failed</h1>
+            <p className="text-gray-700 mb-4">{briefData.error_message || 'An error occurred while generating the brief.'}</p>
+            <a href="/" className="text-blue-600 hover:underline">
+              Try creating a new brief
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show completed brief
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -80,19 +255,18 @@ export default async function BriefPage({ params }: PageProps) {
         </div>
 
         {/* Brief Content */}
-        <div className="space-y-8">
-          <BriefViewer brief={brief} />
-          <DeliverablesViewer deliverables={deliverables} />
-        </div>
+        {briefData.brief && briefData.deliverables && (
+          <div className="space-y-8">
+            <BriefViewer brief={briefData.brief} />
+            <DeliverablesViewer deliverables={briefData.deliverables} />
+          </div>
+        )}
 
         {/* Footer */}
         <div className="mt-12 text-center text-sm text-gray-500">
           <p>
             Powered by{' '}
-            <a
-              href="/"
-              className="text-blue-600 hover:underline"
-            >
+            <a href="/" className="text-blue-600 hover:underline">
               Brief v1 API
             </a>
           </p>

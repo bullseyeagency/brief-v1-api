@@ -32,6 +32,11 @@ export interface V1GeneratedBrief {
   public_slug: string;
   is_public: boolean;
   sophia_contact_id?: string;
+  status: 'processing' | 'completed' | 'failed';
+  progress: number;
+  current_task?: string;
+  logs: string[];
+  error_message?: string;
   created_at: string;
   expires_at?: string;
 }
