@@ -130,9 +130,12 @@ export async function POST(request: NextRequest) {
     console.log(`[API] ✅ Brief created: ${publicUrl}`);
 
     // Step 3: Invoke Netlify background function (don't wait)
-    fetch(`${request.nextUrl.origin}/.netlify/functions/process-brief-background`, {
+    const backgroundUrl = `${request.nextUrl.origin}/.netlify/functions/process-brief-background`;
+    console.log(`[API] Invoking background function: ${backgroundUrl}`);
+
+    fetch(backgroundUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'netlify-background': 'true' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         briefId: newBrief.id,
         crawlResult,
@@ -140,9 +143,17 @@ export async function POST(request: NextRequest) {
         model,
         apiKey,
       }),
-    }).catch((error) => {
-      console.error('[API] Failed to invoke background function:', error);
-    });
+    })
+      .then(async (res) => {
+        console.log(`[API] Background function response: ${res.status}`);
+        if (!res.ok) {
+          const error = await res.text();
+          console.error(`[API] Background function error: ${error}`);
+        }
+      })
+      .catch((error) => {
+        console.error('[API] Failed to invoke background function:', error);
+      });
 
     // Step 4: Return immediately
     const response: CreateBriefResponse = {
