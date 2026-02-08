@@ -86,7 +86,7 @@ export default function BriefPage({ params }: PageProps) {
             // Reload full brief data
             const fullResponse = await fetch(`/api/brief/${slug}`);
             if (fullResponse.ok) {
-              const fullData = await response.json();
+              const fullData = await fullResponse.json();
               setBriefData(fullData);
             }
             clearInterval(pollInterval);
