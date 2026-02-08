@@ -4,13 +4,14 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { V1GeneratedBrief } from '@/lib/supabase';
-import { FileText, Clock, ExternalLink, Loader2 } from 'lucide-react';
+import { FileText, Clock, ExternalLink, Loader2, Trash2 } from 'lucide-react';
 
 export default function BriefsListPage() {
   const router = useRouter();
   const [briefs, setBriefs] = useState<V1GeneratedBrief[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchBriefs() {
@@ -63,6 +64,34 @@ export default function BriefsListPage() {
         return 'bg-blue-100 text-blue-800';
       default:
         return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const handleDelete = async (slug: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (!confirm('Are you sure you want to delete this brief? This action cannot be undone.')) {
+      return;
+    }
+
+    setDeletingId(slug);
+
+    try {
+      const response = await fetch(`/api/brief/${slug}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete brief');
+      }
+
+      // Remove from local state
+      setBriefs(prev => prev.filter(b => b.public_slug !== slug));
+    } catch (err) {
+      console.error('Error deleting brief:', err);
+      setError('Failed to delete brief');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -189,15 +218,29 @@ export default function BriefsListPage() {
                         {formatDate(brief.created_at)}
                       </td>
                       <td className="px-6 py-4 text-right text-sm">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            router.push(`/brief/${brief.public_slug}`);
-                          }}
-                          className="text-blue-600 hover:text-blue-800 font-medium"
-                        >
-                          View Brief
-                        </button>
+                        <div className="flex items-center justify-end gap-3">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/brief/${brief.public_slug}`);
+                            }}
+                            className="text-blue-600 hover:text-blue-800 font-medium"
+                          >
+                            View Brief
+                          </button>
+                          <button
+                            onClick={(e) => handleDelete(brief.public_slug, e)}
+                            disabled={deletingId === brief.public_slug}
+                            className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Delete brief"
+                          >
+                            {deletingId === brief.public_slug ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
