@@ -102,6 +102,7 @@ export async function POST(request: NextRequest) {
       // If deliverables fail to parse, create placeholder
       deliverables = {
         websiteSummary: 'Failed to generate website summary. Please regenerate.',
+        creativeBrief: 'Failed to generate creative brief. Please regenerate.',
         facebookCampaigns: 'Failed to generate Facebook campaigns. Please regenerate.',
         tvCommercial30s: 'Failed to generate TV commercial. Please regenerate.',
       };
