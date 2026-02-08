@@ -17,6 +17,20 @@ interface CreateBriefResponse {
   error?: string;
 }
 
+// CORS headers for cross-origin requests
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+/**
+ * Handle CORS preflight requests
+ */
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
+
 /**
  * Generic API endpoint for external systems to create briefs
  * POST /api/create-brief
@@ -166,7 +180,7 @@ export async function POST(request: NextRequest) {
       status: 'processing',
     };
 
-    return NextResponse.json(response, { status: 200 });
+    return NextResponse.json(response, { status: 200, headers: corsHeaders });
 
   } catch (error) {
     console.error('[API] Error:', error);
@@ -176,7 +190,7 @@ export async function POST(request: NextRequest) {
       error: error instanceof Error ? error.message : 'Internal server error',
     };
 
-    return NextResponse.json(response, { status: 500 });
+    return NextResponse.json(response, { status: 500, headers: corsHeaders });
   }
 }
 
@@ -217,5 +231,5 @@ export async function GET() {
         status: 'processing',
       },
     },
-  });
+  }, { headers: corsHeaders });
 }
