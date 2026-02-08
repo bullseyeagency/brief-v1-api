@@ -102,8 +102,8 @@ export async function POST(request: NextRequest) {
       .insert({
         source_url: url,
         crawl_result: crawlResult,
-        brief: null,
-        deliverables: null,
+        brief: {}, // Empty object initially, populated when complete
+        deliverables: {}, // Empty object initially, populated when complete
         provider,
         model,
         is_public: true,
