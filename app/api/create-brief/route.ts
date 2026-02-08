@@ -80,6 +80,9 @@ export async function POST(request: NextRequest) {
 
     console.log(`[API] Using provider: ${provider}, model: ${model}`);
 
+    // Determine site URL for API responses
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || request.nextUrl.origin;
+
     // Step 1: Crawl the website
     console.log('[API] Starting crawl...');
     const crawlResponse = await fetch(`${request.nextUrl.origin}/api/crawl`, {
@@ -126,11 +129,11 @@ export async function POST(request: NextRequest) {
       throw new Error('Failed to create brief record');
     }
 
-    const publicUrl = `${request.nextUrl.origin}/brief/${newBrief.public_slug}`;
+    const publicUrl = `${siteUrl}/brief/${newBrief.public_slug}`;
     console.log(`[API] ✅ Brief created: ${publicUrl}`);
 
     // Step 3: Invoke Netlify background function (don't wait)
-    const backgroundUrl = `${request.nextUrl.origin}/.netlify/functions/process-brief-background`;
+    const backgroundUrl = `${siteUrl}/.netlify/functions/process-brief-background`;
     console.log(`[API] Invoking background function: ${backgroundUrl}`);
 
     fetch(backgroundUrl, {
