@@ -101,7 +101,7 @@ export interface Deliverables {
   tvCommercial30s: string;
 }
 
-export type AIProvider = 'claude' | 'openai' | 'manus';
+export type AIProvider = 'claude' | 'openai' | 'manus' | 'gemini';
 
 export interface ProviderConfig {
   name: string;
@@ -136,5 +136,13 @@ export const PROVIDER_CONFIGS: Record<AIProvider, ProviderConfig> = {
       { id: 'manus-1', name: 'Manus 1' },
     ],
     defaultModel: 'manus-1',
+  },
+  gemini: {
+    name: 'Google Gemini',
+    models: [
+      { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash' },
+      { id: 'gemini-3-pro-image-preview', name: 'Gemini 3 Pro (Image)' },
+    ],
+    defaultModel: 'gemini-2.0-flash-exp',
   },
 };
