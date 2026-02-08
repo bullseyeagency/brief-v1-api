@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     if (!url) {
       return NextResponse.json(
         { success: false, error: 'Missing required field: url' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     } catch {
       return NextResponse.json(
         { success: false, error: 'Invalid URL format' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     if (!openaiKey && !claudeKey && !geminiKey) {
       return NextResponse.json(
         { success: false, error: 'Server configuration error: No AI provider keys configured' },
-        { status: 500 }
+        { status: 500, headers: corsHeaders }
       );
     }
 
