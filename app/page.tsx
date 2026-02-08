@@ -31,7 +31,7 @@ const TASKS = [
 ];
 
 interface Settings {
-  keys: { claude: string; openai: string; manus: string };
+  keys: { claude: string; openai: string; manus: string; gemini?: string };
   researchModel: { provider: AIProvider; model: string };
   briefModel: { provider: AIProvider; model: string };
 }

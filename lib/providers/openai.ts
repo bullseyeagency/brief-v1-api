@@ -68,14 +68,4 @@ export async function generateWithOpenAI(options: GenerateOptions): Promise<Gene
 
     throw new Error(`OpenAI Error: ${error.message || 'Unknown error'}`);
   }
-
-  console.log(`[OpenAI] ✅ Response received in ${(duration / 1000).toFixed(1)}s`);
-  console.log(`[OpenAI] Response length: ${content.length} chars`);
-  console.log(`[OpenAI] Tokens used: ${response.usage?.total_tokens || 'unknown'}`);
-
-  return {
-    content,
-    model: selectedModel,
-    provider: 'openai',
-  };
 }

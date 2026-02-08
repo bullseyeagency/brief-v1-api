@@ -18,7 +18,7 @@ function formatDeliverableContent(content: unknown): string {
     // Handle array of campaign objects
     return content.map((item, index) => {
       if (typeof item === 'object' && item !== null) {
-        return formatCampaignObject(item, index + 1);
+        return formatCampaignObject(item as Record<string, unknown>, index + 1);
       }
       return String(item);
     }).join('\n\n');
@@ -26,7 +26,7 @@ function formatDeliverableContent(content: unknown): string {
 
   if (typeof content === 'object' && content !== null) {
     // Handle single object
-    return formatCampaignObject(content, 1);
+    return formatCampaignObject(content as Record<string, unknown>, 1);
   }
 
   return String(content);
