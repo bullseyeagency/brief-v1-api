@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Download, FileText, Code, ChevronDown, ChevronRight } from 'lucide-react';
+import { Download, FileText, Code, ChevronDown, ChevronRight, ArrowLeft } from 'lucide-react';
 import { loadBriefOutput, BriefOutput } from '@/lib/store';
 import BriefViewer from '@/components/BriefViewer';
 import DeliverablesViewer from '@/components/DeliverablesViewer';
