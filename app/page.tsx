@@ -6,6 +6,7 @@ import { Globe, Sparkles, AlertCircle, Loader2 } from 'lucide-react';
 import { AIProvider, PROVIDER_CONFIGS, CreativeBrief, CrawlResult, Deliverables } from '@/lib/types';
 import { saveBriefOutput } from '@/lib/store';
 import { buildSystemPrompt, buildGenerationPrompt, buildDeliverablesPrompt } from '@/lib/prompts';
+import { debugFetch, logInfo } from '@/lib/debug-fetch';
 
 type AppState = 'input' | 'processing' | 'error';
 
@@ -29,12 +30,16 @@ const TASKS = [
   { id: 'complete', label: 'Complete! Redirecting...', progress: 100 },
 ];
 
+interface Settings {
+  keys: { claude: string; openai: string; manus: string };
+  researchModel: { provider: AIProvider; model: string };
+  briefModel: { provider: AIProvider; model: string };
+}
+
 export default function Home() {
   const router = useRouter();
   const [url, setUrl] = useState('');
-  const [provider, setProvider] = useState<AIProvider>('claude');
-  const [model, setModel] = useState(PROVIDER_CONFIGS.claude.defaultModel);
-  const [apiKey, setApiKey] = useState('');
+  const [settings, setSettings] = useState<Settings | null>(null);
   const [state, setState] = useState<AppState>('input');
   const [error, setError] = useState('');
 
@@ -42,6 +47,28 @@ export default function Home() {
   const [currentTask, setCurrentTask] = useState('');
   const [logs, setLogs] = useState<TaskLog[]>([]);
   const logContainerRef = useRef<HTMLDivElement>(null);
+
+  // Load settings from localStorage
+  useEffect(() => {
+    const savedSettings = localStorage.getItem('creative_brief_settings');
+    const savedKeys = localStorage.getItem('creative_brief_api_keys');
+
+    if (savedSettings) {
+      const parsed = JSON.parse(savedSettings);
+      // Merge with keys if separate
+      if (savedKeys && !parsed.keys) {
+        parsed.keys = JSON.parse(savedKeys);
+      }
+      setSettings(parsed);
+    } else if (savedKeys) {
+      // Legacy: only keys saved
+      setSettings({
+        keys: JSON.parse(savedKeys),
+        researchModel: { provider: 'openai', model: 'gpt-4o' },
+        briefModel: { provider: 'claude', model: 'claude-sonnet-4-20250514' },
+      });
+    }
+  }, []);
 
   // Auto-scroll log container
   useEffect(() => {
@@ -64,11 +91,6 @@ export default function Home() {
     }
   };
 
-  const handleProviderChange = (newProvider: AIProvider) => {
-    setProvider(newProvider);
-    setModel(PROVIDER_CONFIGS[newProvider].defaultModel);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -79,8 +101,16 @@ export default function Home() {
       setError('Please enter a URL');
       return;
     }
+    if (!settings) {
+      setError('Please configure your settings first');
+      return;
+    }
+
+    const { briefModel, keys } = settings;
+    const apiKey = keys[briefModel.provider];
+
     if (!apiKey) {
-      setError('Please enter your API key');
+      setError(`Please add your ${PROVIDER_CONFIGS[briefModel.provider].name} API key in Settings`);
       return;
     }
 
@@ -93,7 +123,7 @@ export default function Home() {
       await new Promise(r => setTimeout(r, 300)); // Small delay for UX
       updateProgress('crawl-fetch');
 
-      const crawlResponse = await fetch('/api/crawl', {
+      const crawlResponse = await debugFetch('/api/crawl', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url }),
@@ -119,14 +149,16 @@ export default function Home() {
       updateProgress('ai-brief-start');
       await new Promise(r => setTimeout(r, 200));
       updateProgress('ai-brief-processing');
+      addLog(`Using ${PROVIDER_CONFIGS[briefModel.provider].name} - ${briefModel.model}`);
 
-      const generateResponse = await fetch('/api/generate', {
+      logInfo('Sending brief generation request...');
+      const generateResponse = await debugFetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           crawlResult,
-          provider,
-          model,
+          provider: briefModel.provider,
+          model: briefModel.model,
           apiKey,
         }),
       });
@@ -139,9 +171,14 @@ export default function Home() {
       const generateData = await generateResponse.json();
       const brief: CreativeBrief = generateData.brief;
       const deliverables: Deliverables = generateData.deliverables;
+      const publicUrl: string | undefined = generateData.publicUrl;
+      const briefId: string | undefined = generateData.briefId;
 
       updateProgress('ai-brief-complete');
       addLog(`Brief generated with ${brief.avatars.length} avatars and ${brief.proofPillars.length} proof pillars`);
+      if (publicUrl) {
+        addLog(`Saved to database: ${publicUrl}`);
+      }
 
       // Note: Deliverables are generated in the same API call
       updateProgress('ai-deliverables-start');
@@ -163,6 +200,8 @@ export default function Home() {
         provider: generateData.provider,
         model: generateData.model,
         generatedAt: new Date().toISOString(),
+        publicUrl,
+        briefId,
         logs: logs.map(l => `[${l.time}] ${l.message}`).concat([
           `[${new Date().toLocaleTimeString('en-US', { hour12: false })}] Complete! Redirecting...`
         ]),
@@ -189,19 +228,35 @@ export default function Home() {
 
   return (
     <main className="min-h-screen py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Creative Brief Generator</h1>
-          <p className="text-gray-600 text-lg">
+          <h1 className="text-3xl font-bold text-gray-900 mb-1">Strategic and Creative Brief</h1>
+          <p className="text-gray-500 text-sm mb-3">A template to getting sales organized</p>
+          <p className="text-gray-600">
             Transform any website into a complete creative brief using the Mercenary Creative System
           </p>
-          <p className="text-xs text-gray-400 mt-2">v1.01</p>
         </div>
 
         {/* Input Form */}
         {(state === 'input' || state === 'error') && (
           <div className="max-w-2xl mx-auto">
+            {/* Settings Notice */}
+            {!settings ? (
+              <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-amber-800 text-sm">
+                  Please <a href="/settings" className="font-medium underline">configure your settings</a> before generating a brief.
+                </p>
+              </div>
+            ) : (
+              <div className="mb-6 p-3 bg-gray-100 rounded-lg flex items-center justify-between">
+                <span className="text-sm text-gray-600">
+                  Using <span className="font-medium">{PROVIDER_CONFIGS[settings.briefModel.provider].name}</span> for brief generation
+                </span>
+                <a href="/settings" className="text-xs text-blue-600 hover:underline">Change</a>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-lg p-8">
               {/* URL Input */}
               <div className="mb-6">
@@ -218,64 +273,6 @@ export default function Home() {
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                   />
                 </div>
-              </div>
-
-              {/* Provider Selection */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  AI Provider
-                </label>
-                <div className="grid grid-cols-3 gap-3">
-                  {(Object.keys(PROVIDER_CONFIGS) as AIProvider[]).map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => handleProviderChange(p)}
-                      className={`p-3 rounded-lg border-2 transition-all ${
-                        provider === p
-                          ? 'border-primary bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <p className="font-medium text-sm">{PROVIDER_CONFIGS[p].name}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Model Selection */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Model
-                </label>
-                <select
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-                >
-                  {PROVIDER_CONFIGS[provider].models.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* API Key Input */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  API Key
-                </label>
-                <input
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder={`Enter your ${PROVIDER_CONFIGS[provider].name} API key`}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Your API key is sent directly to {PROVIDER_CONFIGS[provider].name} and is not stored.
-                </p>
               </div>
 
               {/* Error Message */}

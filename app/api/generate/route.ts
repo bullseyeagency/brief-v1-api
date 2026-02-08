@@ -3,6 +3,8 @@ import { CrawlResult, AIProvider, CreativeBrief, Deliverables } from '@/lib/type
 import { generateWithProvider } from '@/lib/providers';
 import { buildSystemPrompt, buildGenerationPrompt, buildDeliverablesPrompt } from '@/lib/prompts';
 import { validateCreativeBrief, sanitizeEmDashes } from '@/lib/validation';
+import { cleanupCrawlResult, convertToLegacyFormat } from '@/lib/crawl-cleanup';
+import { supabase } from '@/lib/supabase';
 
 interface GenerateRequest {
   crawlResult: CrawlResult;
@@ -31,6 +33,8 @@ function parseJsonResponse(content: string): unknown {
 }
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+
   try {
     const body: GenerateRequest = await request.json();
     const { crawlResult, provider, model, apiKey } = body;
@@ -39,9 +43,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    // Step 0: Clean and normalize crawl data
+    console.log('[Cleanup] Starting crawl data cleanup...');
+    const { cleanedPages, stats } = cleanupCrawlResult(crawlResult);
+    console.log('[Cleanup] Stats:', JSON.stringify(stats, null, 2));
+    console.log(`[Cleanup] Reduced from ${stats.original} to ${cleanedPages.length} pages`);
+
+    const cleanedCrawlResult = convertToLegacyFormat(
+      cleanedPages,
+      crawlResult.mainUrl,
+      crawlResult.crawledAt
+    );
+
     // Step 1: Generate the creative brief
     const systemPrompt = buildSystemPrompt();
-    const generationPrompt = buildGenerationPrompt(crawlResult);
+    const generationPrompt = buildGenerationPrompt(cleanedCrawlResult);
 
     const briefResult = await generateWithProvider(provider, {
       systemPrompt,
@@ -95,11 +111,41 @@ export async function POST(request: NextRequest) {
     const sanitizedBrief = JSON.parse(sanitizeEmDashes(JSON.stringify(brief)));
     const sanitizedDeliverables = JSON.parse(sanitizeEmDashes(JSON.stringify(deliverables)));
 
+    // Calculate total generation time
+    const generationTimeMs = Date.now() - startTime;
+
+    // Step 3: Save to database
+    console.log('[Database] Saving brief to Supabase...');
+    const { data: savedBrief, error: dbError } = await supabase
+      .from('v1_generated_briefs')
+      .insert({
+        source_url: crawlResult.mainUrl,
+        crawl_result: crawlResult,
+        brief: sanitizedBrief,
+        deliverables: sanitizedDeliverables,
+        provider: briefResult.provider,
+        model: briefResult.model,
+        generation_time_ms: generationTimeMs,
+        is_public: true,
+      })
+      .select('id, public_slug')
+      .single();
+
+    if (dbError) {
+      console.error('[Database] Error saving brief:', dbError);
+      // Don't fail the request, just log the error
+      // User still gets the brief data
+    } else {
+      console.log(`[Database] ✅ Brief saved with slug: ${savedBrief.public_slug}`);
+    }
+
     return NextResponse.json({
       brief: sanitizedBrief,
       deliverables: sanitizedDeliverables,
       model: briefResult.model,
       provider: briefResult.provider,
+      publicUrl: savedBrief ? `/brief/${savedBrief.public_slug}` : undefined,
+      briefId: savedBrief?.id,
     });
   } catch (error) {
     console.error('Generate error:', error);

@@ -51,15 +51,22 @@ function formatCampaignObject(obj: Record<string, unknown>, index: number): stri
 
   // Check if it has TV commercial structure
   if ('openingHook' in obj || 'voiceover' in obj) {
-    if (obj.openingHook) lines.push(`Opening Hook: ${obj.openingHook}`);
-    if (obj.problemEstablishment) lines.push(`Problem: ${obj.problemEstablishment}`);
-    if (obj.brandIntroduction) lines.push(`Brand Introduction: ${obj.brandIntroduction}`);
-    if (obj.proofMoment) lines.push(`Proof Moment: ${obj.proofMoment}`);
-    if (obj.transformation) lines.push(`Transformation: ${obj.transformation}`);
-    if (obj.ctaResolution) lines.push(`CTA: ${obj.ctaResolution}`);
-    if (obj.voiceover) lines.push(`\nVoiceover:\n${obj.voiceover}`);
-    if (obj.visualDirections) lines.push(`\nVisual Directions:\n${obj.visualDirections}`);
-    return lines.join('\n');
+    const formatValue = (val: unknown): string => {
+      if (typeof val === 'object' && val !== null) {
+        return Object.entries(val).map(([k, v]) => `  ${k}: ${v}`).join('\n');
+      }
+      return String(val);
+    };
+
+    if (obj.openingHook) lines.push(`Opening Hook:\n${formatValue(obj.openingHook)}`);
+    if (obj.problemEstablishment) lines.push(`Problem:\n${formatValue(obj.problemEstablishment)}`);
+    if (obj.brandIntroduction) lines.push(`Brand Introduction:\n${formatValue(obj.brandIntroduction)}`);
+    if (obj.proofMoment) lines.push(`Proof Moment:\n${formatValue(obj.proofMoment)}`);
+    if (obj.transformation) lines.push(`Transformation:\n${formatValue(obj.transformation)}`);
+    if (obj.ctaResolution) lines.push(`CTA:\n${formatValue(obj.ctaResolution)}`);
+    if (obj.voiceover) lines.push(`\nVoiceover:\n${formatValue(obj.voiceover)}`);
+    if (obj.visualDirections) lines.push(`\nVisual Directions:\n${formatValue(obj.visualDirections)}`);
+    return lines.join('\n\n');
   }
 
   // Generic object formatting

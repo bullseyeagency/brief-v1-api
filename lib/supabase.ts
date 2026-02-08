@@ -1,0 +1,66 @@
+/**
+ * Supabase client for brief-v1-api
+ * Shared database with creative-brief-v2 but separate tables (v1_*)
+ */
+
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables');
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+/**
+ * Database types for v1 tables
+ */
+export interface V1GeneratedBrief {
+  id: string;
+  source_url: string;
+  crawl_result: any;
+  brief: any;
+  deliverables: any;
+  provider: string;
+  model: string;
+  input_tokens?: number;
+  output_tokens?: number;
+  total_tokens?: number;
+  generation_time_ms?: number;
+  public_slug: string;
+  is_public: boolean;
+  sophia_contact_id?: string;
+  created_at: string;
+  expires_at?: string;
+}
+
+export interface V1PersonaImage {
+  id: string;
+  brief_id: string;
+  persona_name: string;
+  persona_type: 'primary' | 'secondary' | 'tertiary';
+  image_url: string;
+  generation_prompt: string;
+  provider: string;
+  model: string;
+  generation_time_ms?: number;
+  created_at: string;
+}
+
+export interface V1ComicPanel {
+  id: string;
+  brief_id: string;
+  panel_number: number;
+  panel_type: 'brand-story' | '30sec-commercial';
+  scene: string;
+  caption?: string;
+  dialogue?: string;
+  character_focus: string;
+  image_url?: string;
+  provider: string;
+  model?: string;
+  generation_time_ms?: number;
+  created_at: string;
+}

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Download, FileText, Tv, Facebook, Globe, Code, ChevronDown, ChevronRight } from 'lucide-react';
+import { Download, FileText, Code, ChevronDown, ChevronRight } from 'lucide-react';
 import { loadBriefOutput, BriefOutput } from '@/lib/store';
 import BriefViewer from '@/components/BriefViewer';
 import DeliverablesViewer from '@/components/DeliverablesViewer';
@@ -133,19 +133,9 @@ ${formatForDownload(output.deliverables.tvCommercial30s)}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => router.push('/')}
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
-              >
-                <ArrowLeft className="w-5 h-5" />
-                New Brief
-              </button>
-              <div className="h-6 w-px bg-gray-300" />
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">Brand Output</h1>
-                <p className="text-sm text-gray-500">{output.url}</p>
-              </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">Brand Output</h1>
+              <p className="text-sm text-gray-500">{output.url}</p>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-xs text-gray-500">
@@ -328,12 +318,6 @@ ${formatForDownload(output.deliverables.tvCommercial30s)}
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 py-4">
-        <div className="max-w-7xl mx-auto px-4 text-center text-sm text-gray-500">
-          Creative Brief Generator v1.01 - Powered by Mercenary Creative System
-        </div>
-      </footer>
     </div>
   );
 }

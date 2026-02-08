@@ -121,13 +121,14 @@ export const PROVIDER_CONFIGS: Record<AIProvider, ProviderConfig> = {
   openai: {
     name: 'OpenAI',
     models: [
-      { id: 'gpt-5', name: 'GPT-5' },
-      { id: 'gpt-5-mini', name: 'GPT-5 Mini' },
-      { id: 'gpt-4.1', name: 'GPT-4.1' },
-      { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini' },
+      { id: 'gpt-5-2025-08-07', name: 'GPT-5 (Aug 2025)' },
+      { id: 'gpt-5-mini-2025-08-07', name: 'GPT-5 Mini (Aug 2025)' },
+      { id: 'gpt-5-nano-2025-08-07', name: 'GPT-5 Nano (Aug 2025)' },
       { id: 'gpt-4o', name: 'GPT-4o' },
+      { id: 'gpt-4o-mini', name: 'GPT-4o Mini' },
+      { id: 'gpt-4-turbo', name: 'GPT-4 Turbo' },
     ],
-    defaultModel: 'gpt-5',
+    defaultModel: 'gpt-4o',
   },
   manus: {
     name: 'Manus',

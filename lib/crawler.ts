@@ -1,9 +1,24 @@
+/**
+ * @fileoverview Website crawler module for extracting content from web pages.
+ * Uses Cheerio for HTML parsing and implements breadth-first crawling
+ * with priority for important pages (about, pricing, features, etc.)
+ */
+
 import * as cheerio from 'cheerio';
 import { CrawledPage, CrawlResult } from './types';
 
+/** Maximum number of pages to crawl per website */
 const MAX_PAGES = 10;
+
+/** Timeout in milliseconds for each page fetch */
 const FETCH_TIMEOUT = 10000;
 
+/**
+ * Fetches the HTML content of a URL with timeout protection
+ * @param url - The URL to fetch
+ * @returns The HTML string or null if fetch fails
+ * @internal
+ */
 async function fetchPage(url: string): Promise<string | null> {
   try {
     const controller = new AbortController();
@@ -25,6 +40,14 @@ async function fetchPage(url: string): Promise<string | null> {
   }
 }
 
+/**
+ * Extracts structured data from HTML content
+ * Removes scripts, styles, nav, footer, header, and aside elements
+ * @param html - Raw HTML string
+ * @param url - The URL of the page (for resolving relative links)
+ * @returns CrawledPage object with title, meta, headings, body text, and links
+ * @internal
+ */
 function extractPageData(html: string, url: string): CrawledPage {
   const $ = cheerio.load(html);
 
@@ -80,6 +103,22 @@ function extractPageData(html: string, url: string): CrawledPage {
   };
 }
 
+/**
+ * Crawls a website starting from the given URL
+ *
+ * Implements breadth-first crawling with priority for important pages
+ * like /about, /pricing, /features, etc. Stops after MAX_PAGES (10) pages.
+ *
+ * @param startUrl - The starting URL to crawl
+ * @returns Promise resolving to CrawlResult with all crawled pages
+ * @throws Error if the URL is invalid
+ *
+ * @example
+ * ```typescript
+ * const result = await crawlWebsite('https://example.com');
+ * console.log(`Crawled ${result.pages.length} pages`);
+ * ```
+ */
 export async function crawlWebsite(startUrl: string): Promise<CrawlResult> {
   const pages: CrawledPage[] = [];
   const visited = new Set<string>();
@@ -131,6 +170,22 @@ export async function crawlWebsite(startUrl: string): Promise<CrawlResult> {
   };
 }
 
+/**
+ * Converts a CrawlResult into a human-readable summary for AI prompts
+ *
+ * Formats all crawled pages with their titles, descriptions, headings,
+ * and content previews in a structured text format.
+ *
+ * @param result - The CrawlResult from crawlWebsite()
+ * @returns Formatted string summary of all crawled content
+ *
+ * @example
+ * ```typescript
+ * const result = await crawlWebsite('https://example.com');
+ * const summary = summarizeCrawlResult(result);
+ * // Use summary in AI prompt
+ * ```
+ */
 export function summarizeCrawlResult(result: CrawlResult): string {
   let summary = `Website: ${result.mainUrl}\n`;
   summary += `Pages crawled: ${result.pages.length}\n`;
