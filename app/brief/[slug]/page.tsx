@@ -8,7 +8,7 @@ import BriefViewer from '@/components/BriefViewer';
 import DeliverablesViewer from '@/components/DeliverablesViewer';
 
 interface PageProps {
-  params: Promise<{ slug: string }>;
+  params: { slug: string };
 }
 
 interface BriefData {
@@ -28,15 +28,10 @@ interface BriefData {
 }
 
 export default function BriefPage({ params }: PageProps) {
-  const [slug, setSlug] = useState<string | null>(null);
+  const slug = params.slug;
   const [briefData, setBriefData] = useState<BriefData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Unwrap params
-  useEffect(() => {
-    params.then((p) => setSlug(p.slug));
-  }, [params]);
 
   // Fetch initial brief data
   useEffect(() => {
