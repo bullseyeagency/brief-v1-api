@@ -227,7 +227,7 @@ export default function BriefViewer({ brief }: BriefViewerProps) {
 
       {/* Proof Pillars */}
       <Section title="Proof Pillars (5)" icon={<Shield className="w-5 h-5 text-primary" />} defaultOpen>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="space-y-4">
           {brief.proofPillars.map((pillar, i) => (
             <ProofPillarCard key={i} pillar={pillar} index={i} />
           ))}

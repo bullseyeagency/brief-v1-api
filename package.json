@@ -11,14 +11,21 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",
     "@google/genai": "^1.27.0",
+    "@motionone/utils": "^10.18.0",
+    "@radix-ui/react-accordion": "^1.2.12",
+    "@radix-ui/react-slot": "^1.2.4",
     "@supabase/supabase-js": "^2.95.3",
     "cheerio": "^1.0.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.33.0",
     "jspdf": "^3.0.3",
     "lucide-react": "^0.468.0",
     "next": "^14.2.21",
     "openai": "^4.77.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
     "@netlify/functions": "^5.1.2",

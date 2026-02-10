@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Save, Key, Check, Cpu, Eye, EyeOff, FileText, ChevronDown, ChevronRight } from 'lucide-react';
+import { Save, Key, Check, Cpu, Eye, EyeOff, FileText, ChevronDown, ChevronRight, Image, Video } from 'lucide-react';
 import { AIProvider, PROVIDER_CONFIGS } from '@/lib/types';
+import { IMAGE_PRESETS, DEFAULT_IMAGE_PRESET, IMAGE_PROVIDERS, DEFAULT_IMAGE_PROVIDER, DEFAULT_IMAGE_MODEL } from '@/lib/image-presets';
+import { VIDEO_PRESETS, DEFAULT_VIDEO_PRESET, VIDEO_PROVIDERS, DEFAULT_VIDEO_PROVIDER, DEFAULT_VIDEO_MODEL } from '@/lib/video-presets';
 
 interface SavedKeys {
   claude: string;
@@ -26,10 +28,24 @@ interface Prompts {
   usp: PromptPair;
 }
 
+interface ImageModelSelection {
+  provider: string;
+  model: string;
+}
+
+interface VideoModelSelection {
+  provider: string;
+  model: string;
+}
+
 interface Settings {
   keys: SavedKeys;
   researchModel: ModelSelection;
   briefModel: ModelSelection;
+  imageModel: ImageModelSelection;
+  imagePreset: string;
+  videoModel: VideoModelSelection;
+  videoPreset: string;
   prompts: Prompts;
 }
 
@@ -43,6 +59,10 @@ const DEFAULT_SETTINGS: Settings = {
   keys: { claude: '', openai: '', manus: '' },
   researchModel: { provider: 'openai', model: 'gpt-4o' },
   briefModel: { provider: 'claude', model: 'claude-sonnet-4-20250514' },
+  imageModel: { provider: DEFAULT_IMAGE_PROVIDER, model: DEFAULT_IMAGE_MODEL },
+  imagePreset: DEFAULT_IMAGE_PRESET,
+  videoModel: { provider: DEFAULT_VIDEO_PROVIDER, model: DEFAULT_VIDEO_MODEL },
+  videoPreset: DEFAULT_VIDEO_PRESET,
   prompts: DEFAULT_PROMPTS,
 };
 
@@ -64,6 +84,8 @@ export default function SettingsPage() {
     problem: false,
     usp: false,
   });
+  const [generatingSample, setGeneratingSample] = useState(false);
+  const [sampleImageUrl, setSampleImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     // Load API keys (legacy support)
@@ -108,6 +130,35 @@ export default function SettingsPage() {
 
   const toggleAccordion = (section: PromptSection) => {
     setOpenAccordions(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const generateSample = async () => {
+    setGeneratingSample(true);
+    setSampleImageUrl(null);
+
+    try {
+      const response = await fetch('/api/generate-image-sample', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          presetKey: settings.imagePreset,
+          provider: settings.imageModel.provider,
+          model: settings.imageModel.model,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate sample');
+      }
+
+      const data = await response.json();
+      setSampleImageUrl(data.imageUrl);
+    } catch (error) {
+      console.error('Sample generation error:', error);
+      alert('Failed to generate sample image. Please check your API keys.');
+    } finally {
+      setGeneratingSample(false);
+    }
   };
 
   const updateResearchModel = (provider: AIProvider) => {
@@ -356,6 +407,213 @@ export default function SettingsPage() {
                       ))}
                     </select>
                   )}
+                </div>
+
+                {/* Image Generation Model */}
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    AI Model for Image Generation
+                  </label>
+                  <p className="text-xs text-gray-500 mb-4">
+                    Used for generating persona avatars and comic panels
+                  </p>
+                  <div className="mb-3">
+                    <label className="block text-xs font-medium text-gray-600 mb-2">Provider</label>
+                    <select
+                      value={settings.imageModel.provider}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        imageModel: {
+                          provider: e.target.value,
+                          model: IMAGE_PROVIDERS[e.target.value].defaultModel
+                        }
+                      }))}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    >
+                      {Object.keys(IMAGE_PROVIDERS).map((provider) => (
+                        <option key={provider} value={provider}>
+                          {IMAGE_PROVIDERS[provider].name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-2">Model</label>
+                    <select
+                      value={settings.imageModel.model}
+                      onChange={(e) => {
+                        setSettings(prev => ({
+                          ...prev,
+                          imageModel: { ...prev.imageModel, model: e.target.value }
+                        }));
+                        setSampleImageUrl(null); // Clear sample when model changes
+                      }}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    >
+                      {IMAGE_PROVIDERS[settings.imageModel.provider].models.map((m) => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Image Generation Style Preset */}
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Image className="w-4 h-4 text-gray-600" />
+                    <label className="block text-sm font-medium text-gray-700">
+                      Image Generation Style Preset
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-500 mb-4">
+                    Default visual style for persona avatars and comic panels
+                  </p>
+                  <select
+                    value={settings.imagePreset}
+                    onChange={(e) => {
+                      setSettings(prev => ({
+                        ...prev,
+                        imagePreset: e.target.value
+                      }));
+                      setSampleImageUrl(null); // Clear sample when preset changes
+                    }}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    <option value="photorealistic-grid">Hyper-Realistic 3x3 Grid</option>
+                    <option value="illustrated-doodle">Creative Spark: Doodle Frame</option>
+                    <option value="cinematic-contact-sheet">Cinematic Contact Sheet</option>
+                    <option value="vintage-comic-cover">Vintage 1960s Comic Book Cover</option>
+                    <option value="midcentury-narrative">1960s Mid-Century Narrative Comic</option>
+                  </select>
+
+                  {/* Preview description */}
+                  <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                    <p className="text-xs font-medium text-gray-700 mb-1">
+                      {IMAGE_PRESETS[settings.imagePreset].name}
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      {IMAGE_PRESETS[settings.imagePreset].description}
+                    </p>
+                  </div>
+
+                  {/* Generate Sample Info */}
+                  <p className="mt-3 text-xs text-gray-500 italic">
+                    Generate a sample image using a default professional portrait prompt to preview this style.
+                  </p>
+
+                  {/* Generate Sample Button */}
+                  <button
+                    onClick={generateSample}
+                    disabled={generatingSample}
+                    className="mt-2 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    {generatingSample ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Generating Sample...
+                      </>
+                    ) : (
+                      <>
+                        <Image className="w-4 h-4" />
+                        Generate Sample Preview
+                      </>
+                    )}
+                  </button>
+
+                  {/* Sample Image Preview */}
+                  {sampleImageUrl && (
+                    <div className="mt-3 border border-gray-200 rounded-lg overflow-hidden">
+                      <img
+                        src={sampleImageUrl}
+                        alt="Sample preview"
+                        className="w-full h-auto"
+                      />
+                      <div className="p-2 bg-gray-50 text-xs text-gray-600 text-center">
+                        Sample generated with {IMAGE_PRESETS[settings.imagePreset].name}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Video Generation Model */}
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    AI Model for Video Generation
+                  </label>
+                  <p className="text-xs text-gray-500 mb-4">
+                    Used for generating commercial videos and brand stories
+                  </p>
+                  <div className="mb-3">
+                    <label className="block text-xs font-medium text-gray-600 mb-2">Provider</label>
+                    <select
+                      value={settings.videoModel.provider}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        videoModel: {
+                          provider: e.target.value,
+                          model: VIDEO_PROVIDERS[e.target.value].defaultModel
+                        }
+                      }))}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    >
+                      {Object.keys(VIDEO_PROVIDERS).map((provider) => (
+                        <option key={provider} value={provider}>
+                          {VIDEO_PROVIDERS[provider].name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-2">Model</label>
+                    <select
+                      value={settings.videoModel.model}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        videoModel: { ...prev.videoModel, model: e.target.value }
+                      }))}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    >
+                      {VIDEO_PROVIDERS[settings.videoModel.provider].models.map((m) => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Video Generation Style Preset */}
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Video className="w-4 h-4 text-gray-600" />
+                    <label className="block text-sm font-medium text-gray-700">
+                      Video Generation Style Preset
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-500 mb-4">
+                    Default video format and style for commercials and brand content
+                  </p>
+                  <select
+                    value={settings.videoPreset}
+                    onChange={(e) => setSettings(prev => ({
+                      ...prev,
+                      videoPreset: e.target.value
+                    }))}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    <option value="commercial-30s">30-Second TV Commercial</option>
+                    <option value="brand-story-60s">60-Second Brand Story</option>
+                    <option value="social-15s">15-Second Social Media Ad</option>
+                    <option value="explainer-90s">90-Second Product Explainer</option>
+                  </select>
+
+                  {/* Preview description */}
+                  <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                    <p className="text-xs font-medium text-gray-700 mb-1">
+                      {VIDEO_PRESETS[settings.videoPreset].name} ({VIDEO_PRESETS[settings.videoPreset].duration}s)
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      {VIDEO_PRESETS[settings.videoPreset].description}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

@@ -5,7 +5,7 @@
 
 import { supabase } from './supabase';
 import { generateWithProvider } from './providers';
-import { buildSystemPrompt, buildGenerationPrompt, buildDeliverablesPrompt } from './prompts';
+import { buildSystemPrompt, buildGenerationPrompt, buildLocalGenerationPrompt, buildShopifyGenerationPrompt, buildDeliverablesPrompt } from './prompts';
 import { validateCreativeBrief, sanitizeEmDashes } from './validation';
 import { cleanupCrawlResult, convertToLegacyFormat } from './crawl-cleanup';
 import { CrawlResult, AIProvider, CreativeBrief, Deliverables } from './types';
@@ -77,6 +77,16 @@ export async function processBriefGeneration(options: ProcessOptions) {
   const { briefId, crawlResult, provider, model, apiKey } = options;
 
   try {
+    // Fetch brief metadata to determine type
+    const { data: briefRecord } = await supabase
+      .from('v1_generated_briefs')
+      .select('metadata')
+      .eq('id', briefId)
+      .single();
+
+    const briefType = briefRecord?.metadata?.type as 'local' | 'shopify' | undefined;
+    console.log(`[Background] Brief type: ${briefType || 'default'}`);
+
     // Stage 1: Clean crawl data (30-35%)
     await updateBriefStatus(briefId, {
       progress: 30,
@@ -100,11 +110,20 @@ export async function processBriefGeneration(options: ProcessOptions) {
     await updateBriefStatus(briefId, {
       progress: 40,
       current_task: 'Preparing AI prompts',
-      log: 'Building generation prompts...',
+      log: `Building ${briefType || 'default'} generation prompts...`,
     });
 
     const systemPrompt = buildSystemPrompt();
-    const generationPrompt = buildGenerationPrompt(cleanedCrawlResult);
+
+    // Choose prompt based on type
+    let generationPrompt: string;
+    if (briefType === 'local') {
+      generationPrompt = buildLocalGenerationPrompt(cleanedCrawlResult);
+    } else if (briefType === 'shopify') {
+      generationPrompt = buildShopifyGenerationPrompt(cleanedCrawlResult);
+    } else {
+      generationPrompt = buildGenerationPrompt(cleanedCrawlResult);
+    }
 
     await updateBriefStatus(briefId, {
       progress: 45,

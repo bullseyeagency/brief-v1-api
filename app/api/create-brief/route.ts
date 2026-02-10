@@ -42,6 +42,13 @@ export async function POST(request: NextRequest) {
     const body: CreateBriefRequest = await request.json();
     const { url, contactId, metadata } = body;
 
+    console.log('📥 Received brief request:', {
+      url,
+      contactId,
+      metadata,
+      metadataType: metadata?.type || 'MISSING'
+    });
+
     if (!url) {
       return NextResponse.json(
         { success: false, error: 'Missing required field: url' },
@@ -114,6 +121,8 @@ export async function POST(request: NextRequest) {
     console.log(`[API] Crawl complete (${crawlResult.pages.length} pages)`);
 
     // Step 2: Create database record immediately
+    console.log('💾 Storing in database with metadata:', metadata);
+
     const { data: newBrief, error: dbError } = await supabase
       .from('v1_generated_briefs')
       .insert({
@@ -125,6 +134,7 @@ export async function POST(request: NextRequest) {
         model,
         is_public: true,
         sophia_contact_id: contactId || null,
+        metadata: metadata || null, // Store metadata (includes type: 'local' | 'shopify')
         status: 'processing',
         progress: 30,
         current_task: 'Crawl complete',
@@ -133,15 +143,32 @@ export async function POST(request: NextRequest) {
           `[${new Date().toLocaleTimeString('en-US', { hour12: false })}] Fetching pages`,
           `[${new Date().toLocaleTimeString('en-US', { hour12: false })}] Found ${crawlResult.pages.length} pages to analyze`,
           `[${new Date().toLocaleTimeString('en-US', { hour12: false })}] Crawl complete`,
-        ],
+          metadata?.type ? `[${new Date().toLocaleTimeString('en-US', { hour12: false })}] Brief type: ${metadata.type}` : '',
+        ].filter(Boolean),
       })
       .select('id, public_slug')
       .single();
 
     if (dbError || !newBrief) {
-      console.error('[API] Database error:', dbError);
+      console.error('[API] ❌ Database error:', dbError);
+      console.error('[API] ❌ Full error details:', JSON.stringify(dbError, null, 2));
       throw new Error('Failed to create brief record');
     }
+
+    console.log('[API] ✅ Brief created in database:', {
+      id: newBrief.id,
+      slug: newBrief.public_slug,
+      metadataWasIncluded: !!metadata
+    });
+
+    // Verify metadata was saved
+    const { data: verifyBrief } = await supabase
+      .from('v1_generated_briefs')
+      .select('metadata')
+      .eq('id', newBrief.id)
+      .single();
+
+    console.log('[API] 🔍 Verification - metadata in database:', verifyBrief?.metadata);
 
     const publicUrl = `${siteUrl}/brief/${newBrief.public_slug}`;
     console.log(`[API] ✅ Brief created: ${publicUrl}`);

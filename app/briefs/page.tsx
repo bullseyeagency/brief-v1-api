@@ -67,6 +67,22 @@ export default function BriefsListPage() {
     }
   };
 
+  const getTypeColor = (type: string | undefined) => {
+    switch (type) {
+      case 'local':
+        return 'bg-orange-100 text-orange-800';
+      case 'shopify':
+        return 'bg-indigo-100 text-indigo-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getTypeName = (type: string | undefined) => {
+    if (!type) return 'Default';
+    return type.charAt(0).toUpperCase() + type.slice(1);
+  };
+
   const handleDelete = async (slug: string, e: React.MouseEvent) => {
     e.stopPropagation();
 
@@ -157,6 +173,9 @@ export default function BriefsListPage() {
                       Source URL
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Type
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Provider
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -198,6 +217,15 @@ export default function BriefsListPage() {
                       </td>
                       <td className="px-6 py-4">
                         <span
+                          className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getTypeColor(
+                            (brief as any).metadata?.type
+                          )}`}
+                        >
+                          {getTypeName((brief as any).metadata?.type)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
                           className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getProviderColor(
                             brief.provider
                           )}`}
@@ -226,7 +254,16 @@ export default function BriefsListPage() {
                             }}
                             className="text-blue-600 hover:text-blue-800 font-medium"
                           >
-                            View Brief
+                            View New
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/brief-old/${brief.public_slug}`);
+                            }}
+                            className="text-gray-600 hover:text-gray-800 font-medium"
+                          >
+                            View Old
                           </button>
                           <button
                             onClick={(e) => handleDelete(brief.public_slug, e)}
