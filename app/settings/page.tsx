@@ -66,7 +66,7 @@ const DEFAULT_SETTINGS: Settings = {
   prompts: DEFAULT_PROMPTS,
 };
 
-type TabId = 'api-keys' | 'ai-config' | 'ai-prompts';
+type TabId = 'api-keys' | 'ai-config' | 'image-generation' | 'ai-prompts';
 
 type PromptSection = 'promise' | 'problem' | 'usp';
 
@@ -184,6 +184,7 @@ export default function SettingsPage() {
   const tabs = [
     { id: 'api-keys' as TabId, label: 'API Keys', icon: <Key className="w-4 h-4" /> },
     { id: 'ai-config' as TabId, label: 'AI Configuration', icon: <Cpu className="w-4 h-4" /> },
+    { id: 'image-generation' as TabId, label: 'Image Generation', icon: <Image className="w-4 h-4" /> },
     { id: 'ai-prompts' as TabId, label: 'AI Prompts', icon: <FileText className="w-4 h-4" /> },
   ];
 
@@ -308,6 +309,167 @@ export default function SettingsPage() {
             </div>
           )}
 
+          {/* Image Generation Page */}
+          {activeTab === 'image-generation' && (
+            <div>
+              <div className="mb-6">
+                <h2 className="text-lg font-semibold text-gray-900">Image Generation</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Configure AI models and visual styles for generating avatar and section images.
+                </p>
+              </div>
+
+              <div className="grid gap-6">
+                {/* Image Generation Provider */}
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Image Generation Provider
+                  </label>
+                  <p className="text-xs text-gray-500 mb-4">
+                    API provider for generating persona avatars and comic panels
+                  </p>
+                  <select
+                    value={settings.imageModel.provider}
+                    onChange={(e) => setSettings(prev => ({
+                      ...prev,
+                      imageModel: {
+                        provider: e.target.value,
+                        model: IMAGE_PROVIDERS[e.target.value].defaultModel
+                      }
+                    }))}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    {Object.keys(IMAGE_PROVIDERS).map((provider) => (
+                      <option key={provider} value={provider}>
+                        {IMAGE_PROVIDERS[provider].name}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* Provider Info */}
+                  <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-xs font-medium text-blue-900">
+                      API Endpoint: {IMAGE_PROVIDERS[settings.imageModel.provider].apiUrl}
+                    </p>
+                    <p className="text-xs text-blue-700 mt-1">
+                      Make sure your API key is configured in your environment variables
+                    </p>
+                  </div>
+                </div>
+
+                {/* Image Generation Model */}
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Image Generation Model
+                  </label>
+                  <p className="text-xs text-gray-500 mb-4">
+                    Select the AI model to use for image generation
+                  </p>
+                  <select
+                    value={settings.imageModel.model}
+                    onChange={(e) => {
+                      setSettings(prev => ({
+                        ...prev,
+                        imageModel: { ...prev.imageModel, model: e.target.value }
+                      }));
+                      setSampleImageUrl(null);
+                    }}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    {IMAGE_PROVIDERS[settings.imageModel.provider].models.map((m) => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+
+                  {/* Model Info */}
+                  <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                    <p className="text-xs text-gray-600">
+                      Currently selected: <span className="font-medium">{settings.imageModel.model}</span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* Image Generation Style Preset */}
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Image className="w-4 h-4 text-gray-600" />
+                    <label className="block text-sm font-medium text-gray-700">
+                      Visual Style Preset
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-500 mb-4">
+                    Default visual style for persona avatars and comic panels
+                  </p>
+                  <select
+                    value={settings.imagePreset}
+                    onChange={(e) => {
+                      setSettings(prev => ({
+                        ...prev,
+                        imagePreset: e.target.value
+                      }));
+                      setSampleImageUrl(null);
+                    }}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    <option value="photorealistic-grid">Hyper-Realistic 3x3 Grid</option>
+                    <option value="illustrated-doodle">Creative Spark: Doodle Frame</option>
+                    <option value="cinematic-contact-sheet">Cinematic Contact Sheet</option>
+                    <option value="vintage-comic-cover">Vintage 1960s Comic Book Cover</option>
+                    <option value="midcentury-narrative">1960s Mid-Century Narrative Comic</option>
+                  </select>
+
+                  {/* Preview description */}
+                  <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                    <p className="text-xs font-medium text-gray-700 mb-1">
+                      {IMAGE_PRESETS[settings.imagePreset].name}
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      {IMAGE_PRESETS[settings.imagePreset].description}
+                    </p>
+                  </div>
+
+                  {/* Generate Sample Info */}
+                  <p className="mt-3 text-xs text-gray-500 italic">
+                    Generate a sample image using a default professional portrait prompt to preview this style.
+                  </p>
+
+                  {/* Generate Sample Button */}
+                  <button
+                    onClick={generateSample}
+                    disabled={generatingSample}
+                    className="mt-2 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    {generatingSample ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Generating Sample...
+                      </>
+                    ) : (
+                      <>
+                        <Image className="w-4 h-4" />
+                        Generate Sample Preview
+                      </>
+                    )}
+                  </button>
+
+                  {/* Sample Image Preview */}
+                  {sampleImageUrl && (
+                    <div className="mt-3 border border-gray-200 rounded-lg overflow-hidden">
+                      <img
+                        src={sampleImageUrl}
+                        alt="Sample preview"
+                        className="w-full h-auto"
+                      />
+                      <div className="p-2 bg-gray-50 text-xs text-gray-600 text-center">
+                        Sample generated with {IMAGE_PRESETS[settings.imagePreset].name}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* AI Configuration Page */}
           {activeTab === 'ai-config' && (
             <div>
@@ -409,131 +571,6 @@ export default function SettingsPage() {
                   )}
                 </div>
 
-                {/* Image Generation Model */}
-                <div className="bg-white rounded-xl border border-gray-200 p-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    AI Model for Image Generation
-                  </label>
-                  <p className="text-xs text-gray-500 mb-4">
-                    Used for generating persona avatars and comic panels
-                  </p>
-                  <div className="mb-3">
-                    <label className="block text-xs font-medium text-gray-600 mb-2">Provider</label>
-                    <select
-                      value={settings.imageModel.provider}
-                      onChange={(e) => setSettings(prev => ({
-                        ...prev,
-                        imageModel: {
-                          provider: e.target.value,
-                          model: IMAGE_PROVIDERS[e.target.value].defaultModel
-                        }
-                      }))}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                    >
-                      {Object.keys(IMAGE_PROVIDERS).map((provider) => (
-                        <option key={provider} value={provider}>
-                          {IMAGE_PROVIDERS[provider].name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-2">Model</label>
-                    <select
-                      value={settings.imageModel.model}
-                      onChange={(e) => {
-                        setSettings(prev => ({
-                          ...prev,
-                          imageModel: { ...prev.imageModel, model: e.target.value }
-                        }));
-                        setSampleImageUrl(null); // Clear sample when model changes
-                      }}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                    >
-                      {IMAGE_PROVIDERS[settings.imageModel.provider].models.map((m) => (
-                        <option key={m.id} value={m.id}>{m.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Image Generation Style Preset */}
-                <div className="bg-white rounded-xl border border-gray-200 p-6">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Image className="w-4 h-4 text-gray-600" />
-                    <label className="block text-sm font-medium text-gray-700">
-                      Image Generation Style Preset
-                    </label>
-                  </div>
-                  <p className="text-xs text-gray-500 mb-4">
-                    Default visual style for persona avatars and comic panels
-                  </p>
-                  <select
-                    value={settings.imagePreset}
-                    onChange={(e) => {
-                      setSettings(prev => ({
-                        ...prev,
-                        imagePreset: e.target.value
-                      }));
-                      setSampleImageUrl(null); // Clear sample when preset changes
-                    }}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  >
-                    <option value="photorealistic-grid">Hyper-Realistic 3x3 Grid</option>
-                    <option value="illustrated-doodle">Creative Spark: Doodle Frame</option>
-                    <option value="cinematic-contact-sheet">Cinematic Contact Sheet</option>
-                    <option value="vintage-comic-cover">Vintage 1960s Comic Book Cover</option>
-                    <option value="midcentury-narrative">1960s Mid-Century Narrative Comic</option>
-                  </select>
-
-                  {/* Preview description */}
-                  <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                    <p className="text-xs font-medium text-gray-700 mb-1">
-                      {IMAGE_PRESETS[settings.imagePreset].name}
-                    </p>
-                    <p className="text-xs text-gray-600">
-                      {IMAGE_PRESETS[settings.imagePreset].description}
-                    </p>
-                  </div>
-
-                  {/* Generate Sample Info */}
-                  <p className="mt-3 text-xs text-gray-500 italic">
-                    Generate a sample image using a default professional portrait prompt to preview this style.
-                  </p>
-
-                  {/* Generate Sample Button */}
-                  <button
-                    onClick={generateSample}
-                    disabled={generatingSample}
-                    className="mt-2 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-                  >
-                    {generatingSample ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Generating Sample...
-                      </>
-                    ) : (
-                      <>
-                        <Image className="w-4 h-4" />
-                        Generate Sample Preview
-                      </>
-                    )}
-                  </button>
-
-                  {/* Sample Image Preview */}
-                  {sampleImageUrl && (
-                    <div className="mt-3 border border-gray-200 rounded-lg overflow-hidden">
-                      <img
-                        src={sampleImageUrl}
-                        alt="Sample preview"
-                        className="w-full h-auto"
-                      />
-                      <div className="p-2 bg-gray-50 text-xs text-gray-600 text-center">
-                        Sample generated with {IMAGE_PRESETS[settings.imagePreset].name}
-                      </div>
-                    </div>
-                  )}
-                </div>
 
                 {/* Video Generation Model */}
                 <div className="bg-white rounded-xl border border-gray-200 p-6">

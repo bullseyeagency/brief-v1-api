@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { CrawlResult, AIProvider, CreativeBrief, Deliverables } from '@/lib/types';
+import { CrawlResult, AIProvider, CreativeBrief, Deliverables, BriefImages } from '@/lib/types';
 import { generateWithProvider } from '@/lib/providers';
 import { buildSystemPrompt, buildGenerationPrompt, buildDeliverablesPrompt } from '@/lib/prompts';
 import { validateCreativeBrief, sanitizeEmDashes } from '@/lib/validation';
 import { cleanupCrawlResult, convertToLegacyFormat } from '@/lib/crawl-cleanup';
 import { supabase } from '@/lib/supabase';
+import { generateMagazineImages } from '@/lib/image-generator';
+import { saveMagazineImages } from '@/lib/image-storage';
 
 interface GenerateRequest {
   crawlResult: CrawlResult;
   provider?: AIProvider;
   model?: string;
   apiKey?: string;
+  generateImages?: boolean; // Optional: generate images for avatars and sections
 }
 
 function parseJsonResponse(content: string): unknown {
@@ -37,7 +40,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body: GenerateRequest = await request.json();
-    let { crawlResult, provider, model, apiKey } = body;
+    let { crawlResult, provider, model, apiKey, generateImages = false } = body;
 
     if (!crawlResult) {
       return NextResponse.json({ error: 'Missing required field: crawlResult' }, { status: 400 });
@@ -166,10 +169,29 @@ export async function POST(request: NextRequest) {
     const sanitizedBrief = JSON.parse(sanitizeEmDashes(JSON.stringify(brief)));
     const sanitizedDeliverables = JSON.parse(sanitizeEmDashes(JSON.stringify(deliverables)));
 
+    // Step 3: Generate magazine images (optional)
+    let images: BriefImages | null = null;
+    if (generateImages) {
+      try {
+        console.log('[Magazine] Starting magazine image generation...');
+        const businessName = cleanedCrawlResult.mainUrl.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
+        const tempImages = await generateMagazineImages(sanitizedBrief, businessName);
+        console.log(`[Magazine] ✅ Generated 13 images (3 avatars + cover + 8 pages + back cover)`);
+
+        // Note: We need a briefId to save images, so we'll save them after database insert
+        // For now, store temporary URLs
+        images = tempImages;
+      } catch (imageError) {
+        console.error('[Magazine] ⚠️ Image generation failed, continuing without images:', imageError);
+        // Don't fail the entire request if images fail
+        images = null;
+      }
+    }
+
     // Calculate total generation time
     const generationTimeMs = Date.now() - startTime;
 
-    // Step 3: Save to database
+    // Step 4: Save to database
     console.log('[Database] Saving brief to Supabase...');
     const { data: savedBrief, error: dbError } = await supabase
       .from('v1_generated_briefs')
@@ -178,6 +200,7 @@ export async function POST(request: NextRequest) {
         crawl_result: crawlResult,
         brief: sanitizedBrief,
         deliverables: sanitizedDeliverables,
+        images: images || null,
         provider: briefResult.provider,
         model: briefResult.model,
         generation_time_ms: generationTimeMs,
@@ -192,11 +215,36 @@ export async function POST(request: NextRequest) {
       // User still gets the brief data
     } else {
       console.log(`[Database] ✅ Brief saved with slug: ${savedBrief.public_slug}`);
+
+      // Step 5: If images were generated, save them permanently to storage
+      if (images && savedBrief?.id) {
+        try {
+          console.log('[Storage] Saving magazine images to permanent storage...');
+          const permanentImages = await saveMagazineImages(savedBrief.id, images);
+
+          // Update database with permanent URLs
+          const { error: updateError } = await supabase
+            .from('v1_generated_briefs')
+            .update({ images: permanentImages })
+            .eq('id', savedBrief.id);
+
+          if (updateError) {
+            console.error('[Storage] Error updating with permanent URLs:', updateError);
+          } else {
+            console.log('[Storage] ✅ Updated database with permanent magazine image URLs');
+            images = permanentImages; // Return permanent URLs to user
+          }
+        } catch (storageError) {
+          console.error('[Storage] ⚠️ Failed to save magazine images permanently:', storageError);
+          // Continue with temporary URLs
+        }
+      }
     }
 
     return NextResponse.json({
       brief: sanitizedBrief,
       deliverables: sanitizedDeliverables,
+      images: images,
       model: briefResult.model,
       provider: briefResult.provider,
       publicUrl: savedBrief ? `/brief/${savedBrief.public_slug}` : undefined,

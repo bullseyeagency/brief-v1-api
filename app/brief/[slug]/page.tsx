@@ -391,7 +391,10 @@ export default function BriefPage({ params }: PageProps) {
 
       {/* Audience Avatars - Elegant Editorial */}
       {brief.avatars && brief.avatars.length > 0 && (
-        <CustomerAvatarsElegant avatars={brief.avatars} />
+        <CustomerAvatarsElegant
+          avatars={brief.avatars}
+          businessName={briefData.source_url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}
+        />
       )}
 
       {/* Proof Pillars - Elegant Editorial */}
@@ -400,18 +403,18 @@ export default function BriefPage({ params }: PageProps) {
       )}
 
       {/* Call to Action - Elegant Editorial */}
-      <CallToActionElegant
+      {/* <CallToActionElegant
         callToAction={brief.callToAction}
         offer={brief.offer}
         conversionPath={brief.conversionPath}
-      />
+      /> */}
 
       {/* Creative Direction - Elegant Editorial */}
-      <CreativeDirectionElegant
+      {/* <CreativeDirectionElegant
         creativeDirections={brief.creativeDirections}
         visualStyle={brief.visualStyle}
         narrativeApproach={brief.narrativeApproach}
-      />
+      /> */}
 
       {/* Marketing Campaigns Section */}
       <section className="py-20 px-6 bg-gradient-to-b from-white to-gray-50">

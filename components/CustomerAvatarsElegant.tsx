@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from 'react';
+
 interface Avatar {
   name: string;
   age: number;
@@ -8,21 +10,56 @@ interface Avatar {
   desire: string;
   conflict: string;
   transformation: string;
+  background?: string;
   values: string[];
   decisionFactors: string[];
 }
 
 interface CustomerAvatarsElegantProps {
   avatars: Avatar[];
+  businessName?: string;
 }
 
-export function CustomerAvatarsElegant({ avatars }: CustomerAvatarsElegantProps) {
+export function CustomerAvatarsElegant({ avatars, businessName = 'Business' }: CustomerAvatarsElegantProps) {
+  const [generatedImages, setGeneratedImages] = useState<Record<number, string>>({});
+  const [loadingStates, setLoadingStates] = useState<Record<number, boolean>>({});
+
   const getTypeLabel = (type: string) => {
     switch(type) {
       case 'primary': return 'Primary Hero';
       case 'secondary': return 'Secondary Mirror';
       case 'tertiary': return 'Tertiary Aspirational';
       default: return type;
+    }
+  };
+
+  const handleGenerateImage = async (avatar: Avatar, index: number) => {
+    try {
+      setLoadingStates(prev => ({ ...prev, [index]: true }));
+
+      const response = await fetch('/api/generate-avatar-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          avatar,
+          businessName,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate image');
+      }
+
+      const data = await response.json();
+      setGeneratedImages(prev => ({ ...prev, [index]: data.imageUrl }));
+    } catch (error) {
+      console.error('Error generating avatar image:', error);
+      alert(error instanceof Error ? error.message : 'Failed to generate image');
+    } finally {
+      setLoadingStates(prev => ({ ...prev, [index]: false }));
     }
   };
 
@@ -58,11 +95,20 @@ export function CustomerAvatarsElegant({ avatars }: CustomerAvatarsElegantProps)
                 {/* Avatar Portrait */}
                 <div className={`md:col-span-4 ${isEven ? 'md:col-start-1' : 'md:col-start-9'} ${isEven ? 'order-1' : 'order-2'}`}>
                   <div className="relative aspect-[3/4] overflow-hidden bg-slate-100 group">
-                    <img
-                      src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${avatar.name}`}
-                      alt={avatar.name}
-                      className="object-cover w-full h-full transition-transform duration-1000 group-hover:scale-105"
-                    />
+                    {loadingStates[index] ? (
+                      <div className="absolute inset-0 flex items-center justify-center bg-slate-100">
+                        <div className="flex flex-col items-center gap-3">
+                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900"></div>
+                          <span className="font-sans text-xs text-slate-600">Generating image...</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <img
+                        src={generatedImages[index] || `https://api.dicebear.com/7.x/avataaars/svg?seed=${avatar.name}`}
+                        alt={avatar.name}
+                        className="object-cover w-full h-full transition-transform duration-1000 group-hover:scale-105"
+                      />
+                    )}
                     {/* Decorative frame */}
                     <div className="absolute inset-0 border border-slate-200/50"></div>
                     <div className="absolute -bottom-6 -right-6 w-24 h-24 border-r border-b border-slate-300/30"></div>
@@ -78,6 +124,15 @@ export function CustomerAvatarsElegant({ avatars }: CustomerAvatarsElegantProps)
                         {getTypeLabel(avatar.type)}
                       </span>
                     </div>
+
+                    {/* Generate Image Button */}
+                    <button
+                      onClick={() => handleGenerateImage(avatar, index)}
+                      disabled={loadingStates[index]}
+                      className="mt-4 font-sans text-xs text-slate-500 hover:text-slate-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider"
+                    >
+                      {generatedImages[index] ? 'Regenerate Image' : 'Generate Image'}
+                    </button>
                   </div>
                 </div>
 

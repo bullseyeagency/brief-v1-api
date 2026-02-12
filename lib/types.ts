@@ -14,8 +14,9 @@ export interface Avatar {
   conflict: string;
   transformation: string;
   moralArc: string;
-  featureBenefits: [FeatureBenefit, FeatureBenefit, FeatureBenefit];
+  featureBenefits?: [FeatureBenefit, FeatureBenefit, FeatureBenefit]; // Optional - may not be generated
   cinematicImagePrompt: string;
+  generatedImageUrl?: string; // Stores the avatar image URL for use as reference in section images
 }
 
 export interface ProofPillar {
@@ -94,11 +95,51 @@ export interface GenerationRequest {
   model?: string;
 }
 
+export interface FacebookCampaign {
+  campaignName: string;
+  objective: string;
+  targetAvatar: 'Primary' | 'Secondary' | 'Tertiary';
+  primaryText: string;
+  headline: string;
+  description: string;
+  visualDirection: string;
+}
+
+export interface Video8sSection {
+  duration: string;
+  purpose: string;
+  visualDirection: string;
+  voiceoverOrText: string;
+}
+
+export interface Video8s {
+  recognition: Video8sSection;
+  proofInContext: Video8sSection;
+  beliefLock: Video8sSection;
+}
+
 export interface Deliverables {
   websiteSummary: string;
-  creativeBrief: string;
-  facebookCampaigns: string;
-  tvCommercial30s: string;
+  creativeBrief?: string; // Legacy field, may not exist in new briefs
+  facebookCampaigns: FacebookCampaign[] | string; // Array for new format, string for legacy
+  tvCommercial30s?: string; // Legacy field, replaced by video8s
+  video8s?: Video8s; // New field
+}
+
+export interface BriefImages {
+  cover: string;              // Page 0: Cover with 2 avatars
+  avatars: [string, string, string]; // Reference images for avatars
+  pages: {
+    brandTruth: string;       // Page 1: Brand Truth with primary avatar
+    marketContext: string;    // Page 2: Market Context with secondary avatar
+    problem: string;          // Page 3: Problem with primary avatar
+    transformation: string;   // Page 4: Transformation with primary avatar
+    proofPillars: string;     // Page 5: Proof Pillars with tertiary avatar
+    offer: string;            // Page 6: Offer with all 3 avatars
+    messaging: string;        // Page 7: Messaging with secondary avatar
+    creativeDirection: string;// Page 8: Creative Direction (visual showcase)
+  };
+  backCover: string;          // Page 9: Back Cover with CTA
 }
 
 export type AIProvider = 'claude' | 'openai' | 'manus' | 'gemini';

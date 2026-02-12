@@ -252,7 +252,10 @@ export default function BriefPage({ params }: PageProps) {
         {/* Brief Content */}
         {briefData.brief && briefData.deliverables && (
           <div className="space-y-8">
-            <BriefViewer brief={briefData.brief} />
+            <BriefViewer
+              brief={briefData.brief}
+              businessName={briefData.source_url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}
+            />
             <DeliverablesViewer deliverables={briefData.deliverables} />
           </div>
         )}

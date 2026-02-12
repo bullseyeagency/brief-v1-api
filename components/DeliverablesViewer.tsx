@@ -1,6 +1,6 @@
 'use client';
 
-import { Globe, Facebook, Tv, Copy, Check } from 'lucide-react';
+import { Globe, Facebook, Tv, Film, Copy, Check } from 'lucide-react';
 import { useState } from 'react';
 import { Deliverables } from '@/lib/types';
 
@@ -69,6 +69,29 @@ function formatCampaignObject(obj: Record<string, unknown>, index: number): stri
     return lines.join('\n\n');
   }
 
+  // Check if it has video8s structure
+  if ('recognition' in obj || 'proofInContext' in obj || 'beliefLock' in obj) {
+    const formatSection = (section: Record<string, unknown>, name: string): string => {
+      const sectionLines: string[] = [`--- ${name} ---`];
+      if (section.duration) sectionLines.push(`Duration: ${section.duration}`);
+      if (section.purpose) sectionLines.push(`Purpose: ${section.purpose}`);
+      if (section.visualDirection) sectionLines.push(`Visual Direction: ${section.visualDirection}`);
+      if (section.voiceoverOrText) sectionLines.push(`Voiceover/Text: ${section.voiceoverOrText}`);
+      return sectionLines.join('\n');
+    };
+
+    if (obj.recognition && typeof obj.recognition === 'object') {
+      lines.push(formatSection(obj.recognition as Record<string, unknown>, 'Recognition (0-2s)'));
+    }
+    if (obj.proofInContext && typeof obj.proofInContext === 'object') {
+      lines.push(formatSection(obj.proofInContext as Record<string, unknown>, 'Proof in Context (2-6s)'));
+    }
+    if (obj.beliefLock && typeof obj.beliefLock === 'object') {
+      lines.push(formatSection(obj.beliefLock as Record<string, unknown>, 'Belief Lock (6-8s)'));
+    }
+    return lines.join('\n\n');
+  }
+
   // Generic object formatting
   for (const [key, value] of Object.entries(obj)) {
     const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
@@ -130,6 +153,10 @@ function DeliverableCard({
 }
 
 export default function DeliverablesViewer({ deliverables }: DeliverablesViewerProps) {
+  // Determine if this is a new-format brief (has video8s) or legacy (has tvCommercial30s)
+  const hasVideo8s = deliverables.video8s !== undefined;
+  const hasTvCommercial = deliverables.tvCommercial30s !== undefined;
+
   return (
     <div className="space-y-6">
       <DeliverableCard
@@ -144,11 +171,23 @@ export default function DeliverablesViewer({ deliverables }: DeliverablesViewerP
         content={deliverables.facebookCampaigns}
       />
 
-      <DeliverableCard
-        title="30-Second TV Commercial"
-        icon={<Tv className="w-5 h-5 text-purple-600" />}
-        content={deliverables.tvCommercial30s}
-      />
+      {/* Show video8s for new format */}
+      {hasVideo8s && (
+        <DeliverableCard
+          title="8-Second Video"
+          icon={<Film className="w-5 h-5 text-purple-600" />}
+          content={deliverables.video8s}
+        />
+      )}
+
+      {/* Show TV commercial for legacy format */}
+      {hasTvCommercial && !hasVideo8s && (
+        <DeliverableCard
+          title="30-Second TV Commercial"
+          icon={<Tv className="w-5 h-5 text-purple-600" />}
+          content={deliverables.tvCommercial30s}
+        />
+      )}
     </div>
   );
 }

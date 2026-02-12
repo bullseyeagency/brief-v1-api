@@ -63,6 +63,17 @@ Every project should have:
 
 ## Outstanding Tasks
 
+- [x] **Magazine format with avatar references** (COMPLETED 2026-02-11)
+- [ ] **Test magazine generation end-to-end**
+  - Generate test brief with `generateImages: true`
+  - Verify 13 images created and stored
+  - Test 3D flip book magazine UI
+  - Verify character consistency across pages
+  - See TESTING-MAGAZINE.md for full guide
+- [ ] Add database persistence for manual image generation buttons
+  - Update `/api/generate-section-image` to save permanently
+  - Update `/api/generate-avatar-image` to save permanently
+  - Pass `briefId` from BriefViewer component to API endpoints
 - [ ] Deploy to Vercel
 - [ ] Test with more websites
 - [ ] Add PDF export feature
@@ -70,6 +81,74 @@ Every project should have:
 ## Session Notes
 
 <!-- Add notes from each session below -->
+
+### 2026-02-11
+- Analyzed mechanical brief output issues (see BRIEF-GENERATION-ANALYSIS.md)
+- Proposed feedback loop: OpenAI structure + Claude creative refinement
+- **Implemented image generation module** (lib/image-generator.ts)
+  - Generates 8 comic-style images per brief (3 avatars + 5 sections)
+  - Modern graphic novel style based on reference image
+  - Uses NanoBanana API (Gemini 3 Pro Image): https://nanobananaapi.dev/
+  - ~$0.32 per brief, ~10-15 seconds parallel generation
+  - Optional: `generateImages: true` in API request
+- Updated types.ts with BriefImages interface
+- Updated generate route to support image generation
+- Created IMAGE-GENERATION.md documentation
+- **Added manual image generation testing UI**
+  - Created /api/generate-avatar-image endpoint for individual avatar images
+  - Modified CustomerAvatarsElegant component with "Generate Image" button
+  - Added loading states and image display for each avatar
+  - Allows manual testing of image generation per avatar
+- **Added image generation settings page**
+  - Created "Image Generation" tab in settings
+  - Provider selection (NanoBanana)
+  - Model selection dropdown (Gemini 3 Pro, 2.5 Flash, etc.)
+  - Sample preview generation
+  - Settings properly passed to API endpoints
+- **Implemented Creative Brief Booklet Format** (NEW!)
+  - Magazine-style flip book presentation at /brief-booklet/[slug]
+  - Uses Swiper.js with 3D flip effect
+  - 12 beautifully designed pages
+  - Keyboard navigation (arrow keys)
+  - Touch/swipe support for mobile
+  - Professional layouts for each section
+  - Page counter and navigation controls
+  - See BOOKLET-FORMAT.md for full documentation
+- **Implemented permanent image storage**
+  - NanoBanana URLs are temporary (expire after ~1 hour)
+  - Created lib/image-storage.ts with download → upload → permanent URL flow
+  - Uses supabaseAdmin (service role key) for storage operations
+  - All 8 images saved to Supabase Storage during brief generation
+  - Created test endpoints (/api/test-storage, /api/list-buckets) for debugging
+  - See STORAGE-SETUP.md for configuration guide
+- **Redesigned /brief-old layout**
+  - 2-column grid layout (image left, text right) for all sections
+  - Square aspect ratio (1:1) for section images
+  - Enhanced styling with gradients, shadows, better spacing
+  - Prominent "Generate Image" buttons for manual testing
+- **IDENTIFIED:** Manual image generation buttons don't persist to database
+  - Currently only update React state (temporary, lost on refresh)
+  - Need to add database persistence for individual image generation
+  - Scheduled for next bundle of changes
+- **MAJOR UPDATE: Magazine Format with Avatar References** 🎉
+  - Migrated from 8 images to **13 images per brief**
+  - Uses NanoBanana `/v1/images/edit` for image-to-image generation
+  - Avatars generated first, then used as references for section images
+  - **Perfect character consistency** - same face across all relevant pages
+  - New structure: Cover + 8 section pages + Back cover (10 total pages)
+  - Updated data models (Avatar + BriefImages interfaces)
+  - Created `generateMagazineImages()` orchestrator function
+  - Created `saveMagazineImages()` for 13-image storage
+  - **Replaced Swiper with 3D CSS flip book**
+    - Pure CSS/React (no external library)
+    - 5 double-sided sheets = 10 pages
+    - Realistic spine binding and page shadows
+    - Click to flip + keyboard navigation
+    - Mobile responsive with touch gestures
+  - Added database migration (20260211_add_images_column.sql)
+  - Created TESTING-MAGAZINE.md with comprehensive testing guide
+  - Generation time: ~18-22 seconds (vs old 10-15 seconds)
+  - Cost: $0.52/brief (vs old $0.32) - 13 images vs 8 images
 
 ### 2026-01-17
 - Initial build complete (v1.00)
