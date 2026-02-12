@@ -6,11 +6,13 @@ import { CreativeBrief } from '@/lib/types';
 
 export async function POST(request: NextRequest) {
   try {
-    const { briefId } = await request.json();
+    const { briefId, model } = await request.json();
 
     if (!briefId) {
       return NextResponse.json({ error: 'Missing briefId' }, { status: 400 });
     }
+
+    const imageModel = model || 'gemini-2.5-flash-image';
 
     // Fetch brief from database
     console.log(`[Regenerate] Fetching brief ${briefId}...`);
@@ -35,9 +37,9 @@ export async function POST(request: NextRequest) {
       : 'Business';
 
     // Generate magazine images
-    console.log('[Regenerate] Generating magazine images...');
+    console.log(`[Regenerate] Generating magazine images with model: ${imageModel}...`);
     const startTime = Date.now();
-    const tempImages = await generateMagazineImages(brief, businessName);
+    const tempImages = await generateMagazineImages(brief, businessName, imageModel);
     const generationTime = Date.now() - startTime;
     console.log(`[Regenerate] ✅ Images generated in ${(generationTime / 1000).toFixed(1)}s`);
 

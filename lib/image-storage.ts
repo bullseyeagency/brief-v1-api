@@ -64,13 +64,29 @@ export async function saveImagePermanently(
   imageType: string // e.g., 'avatar_primary', 'section_brand_truth'
 ): Promise<string> {
   try {
+    // Skip empty URLs (commented out pages)
+    if (!temporaryUrl || temporaryUrl.trim() === '') {
+      console.log(`[Storage] Skipping empty URL for ${imageType}`);
+      return '';
+    }
+
     console.log(`[Storage] Downloading image from temporary URL...`);
 
     // Download image from temporary URL
     const imageBlob = await downloadImage(temporaryUrl);
 
-    // Generate unique filename
-    const timestamp = Date.now();
+    // Generate unique filename with YYYYMMDD-HH-MM-SS timestamp
+    const now = new Date();
+    const timestamp =
+      now.getFullYear().toString() +
+      (now.getMonth() + 1).toString().padStart(2, '0') +
+      now.getDate().toString().padStart(2, '0') +
+      '-' +
+      now.getHours().toString().padStart(2, '0') +
+      '-' +
+      now.getMinutes().toString().padStart(2, '0') +
+      '-' +
+      now.getSeconds().toString().padStart(2, '0');
     const extension = imageBlob.type.split('/')[1] || 'png';
     const fileName = `${briefId}/${imageType}_${timestamp}.${extension}`;
 

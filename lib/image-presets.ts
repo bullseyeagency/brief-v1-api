@@ -112,13 +112,13 @@ export const IMAGE_PROVIDERS: Record<string, ImageProviderConfig> = {
   nanobanana: {
     name: 'NanoBanana',
     apiUrl: 'https://api.nanobananaapi.dev',
-    defaultModel: 'gemini-3-pro-image-preview',
+    defaultModel: 'gemini-2.5-flash-image',
     models: [
       { id: 'gemini-3-pro-image-preview', name: 'Gemini 3 Pro Preview' },
       { id: 'gemini-3-pro-image-preview-2k', name: 'Gemini 3 Pro Preview 2K' },
       { id: 'gemini-3-pro-image-preview-4k', name: 'Gemini 3 Pro Preview 4K' },
-      { id: 'gemini-2.5-flash-image', name: 'Gemini 2.5 Flash (may not work)' },
-      { id: 'gemini-2.5-flash-image-hd', name: 'Gemini 2.5 Flash HD (may not work)' },
+      { id: 'gemini-2.5-flash-image', name: 'Gemini 2.5 Flash' },
+      { id: 'gemini-2.5-flash-image-hd', name: 'Gemini 2.5 Flash HD' },
     ]
   }
 };

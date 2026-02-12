@@ -156,6 +156,16 @@ export default function BriefMagazinePage({ params }: PageProps) {
           cursor: pointer;
         }
 
+        .paper:nth-child(1) { z-index: 5; }
+        .paper:nth-child(2) { z-index: 4; }
+        .paper:nth-child(3) { z-index: 3; }
+        .paper:nth-child(4) { z-index: 2; }
+        .paper:nth-child(5) { z-index: 1; }
+
+        .paper.flipped {
+          z-index: 10 !important;
+        }
+
         .paper.flipped {
           transform: rotateY(-180deg);
         }
@@ -226,7 +236,7 @@ export default function BriefMagazinePage({ params }: PageProps) {
           background: white;
         }
 
-        .paper:first-child .page-image {
+        .paper:first-child .front .page-image {
           object-fit: cover !important;
           padding-left: 14px;
         }

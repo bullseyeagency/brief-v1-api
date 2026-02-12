@@ -173,7 +173,7 @@ function buildBackCoverPagePrompt(businessName: string, cta: string): string {
 /**
  * Generates a single image using NanoBanana API
  */
-async function generateImage(prompt: string, model: string = 'gemini-3-pro-image-preview'): Promise<string> {
+async function generateImage(prompt: string, model: string = 'gemini-3-pro-image-preview', imageSize: string = '1:1'): Promise<string> {
   const apiKey = process.env.NANOBANANA_API_KEY;
   if (!apiKey) {
     throw new Error('NANOBANANA_API_KEY not configured');
@@ -192,7 +192,7 @@ async function generateImage(prompt: string, model: string = 'gemini-3-pro-image
           model: model,
           prompt: prompt,
           num: 1,
-          image_size: '1:1',
+          image_size: imageSize,
         }),
       }
     );
@@ -229,7 +229,8 @@ async function generateImage(prompt: string, model: string = 'gemini-3-pro-image
 async function generateImageFromReference(
   referenceImageUrl: string,
   prompt: string,
-  model: string = 'gemini-3-pro-image-preview'
+  model: string = 'gemini-3-pro-image-preview',
+  imageSize: string = '1:1'
 ): Promise<string> {
   const apiKey = process.env.NANOBANANA_API_KEY;
   if (!apiKey) {
@@ -249,7 +250,7 @@ async function generateImageFromReference(
           image: referenceImageUrl,  // Reference avatar image
           prompt: prompt,             // Scene transformation
           model: model,
-          image_size: '1:1',
+          image_size: imageSize,
           num: 1
         }),
       }
@@ -294,93 +295,45 @@ export async function generateMagazineImages(
 
   console.log('[Magazine] Starting image generation...');
 
-  // PHASE 1: Generate 3 avatar reference images (SEQUENTIAL)
-  console.log('[Magazine] Generating avatar references...');
+  // PHASE 1: Generate 3 avatar reference images (PARALLEL) - 1:1 with flash
+  console.log(`[Magazine] Generating avatar references in parallel (1:1) with ${model}...`);
 
-  const avatar1Url = await generateImage(
-    buildAvatarImagePrompt(brief.avatars[0], businessName),
-    model
-  );
+  const [avatar1Url, avatar2Url, avatar3Url] = await Promise.all([
+    generateImage(buildAvatarImagePrompt(brief.avatars[0], businessName), model, '1:1'),
+    generateImage(buildAvatarImagePrompt(brief.avatars[1], businessName), model, '1:1'),
+    generateImage(buildAvatarImagePrompt(brief.avatars[2], businessName), model, '1:1'),
+  ]);
+
   brief.avatars[0].generatedImageUrl = avatar1Url;
-  console.log('[Magazine] ✓ Primary avatar generated');
-
-  const avatar2Url = await generateImage(
-    buildAvatarImagePrompt(brief.avatars[1], businessName),
-    model
-  );
   brief.avatars[1].generatedImageUrl = avatar2Url;
-  console.log('[Magazine] ✓ Secondary avatar generated');
-
-  const avatar3Url = await generateImage(
-    buildAvatarImagePrompt(brief.avatars[2], businessName),
-    model
-  );
   brief.avatars[2].generatedImageUrl = avatar3Url;
-  console.log('[Magazine] ✓ Tertiary avatar generated');
+  console.log('[Magazine] ✓ All 3 avatars generated in parallel');
 
-  // PHASE 2: Generate 10 magazine pages using avatars as references (PARALLEL)
-  console.log('[Magazine] Generating magazine pages with avatar references...');
+  // PHASE 2: Generate 10 magazine pages - All 1:1 with flash (no image-to-image for now)
+  console.log(`[Magazine] Generating 10 magazine pages (1:1) with ${model}...`);
 
   const [cover, page1, page2, page3, page4, page5, page6, page7, page8, backCover] =
     await Promise.all([
-      // Cover: Use primary avatar as base
-      generateImageFromReference(
-        avatar1Url,
-        buildCoverPagePrompt(brief, businessName),
-        model
-      ),
-      // Page 1: Brand Truth with primary avatar
-      generateImageFromReference(
-        avatar1Url,
-        buildBrandTruthPagePrompt(brief),
-        model
-      ),
-      // Page 2: Market Context with secondary avatar
-      generateImageFromReference(
-        avatar2Url,
-        buildMarketContextPagePrompt(brief),
-        model
-      ),
-      // Page 3: Problem with primary avatar
-      generateImageFromReference(
-        avatar1Url,
-        buildProblemPagePrompt(brief),
-        model
-      ),
-      // Page 4: Transformation with primary avatar
-      generateImageFromReference(
-        avatar1Url,
-        buildTransformationPagePrompt(brief),
-        model
-      ),
-      // Page 5: Proof Pillars with tertiary avatar
-      generateImageFromReference(
-        avatar3Url,
-        buildProofPillarsPagePrompt(brief),
-        model
-      ),
-      // Page 6: Offer with primary avatar as base
-      generateImageFromReference(
-        avatar1Url,
-        buildOfferPagePrompt(brief),
-        model
-      ),
-      // Page 7: Messaging with secondary avatar
-      generateImageFromReference(
-        avatar2Url,
-        buildMessagingPagePrompt(brief),
-        model
-      ),
-      // Page 8: Creative Direction (no avatar reference)
-      generateImage(
-        buildCreativeDirectionPagePrompt(brief),
-        model
-      ),
-      // Page 9: Back Cover (no avatar reference)
-      generateImage(
-        buildBackCoverPagePrompt(businessName, brief.callToAction),
-        model
-      ),
+      // Cover
+      generateImage(buildCoverPagePrompt(brief, businessName), model, '1:1'),
+      // Page 1: Brand Truth
+      generateImage(buildBrandTruthPagePrompt(brief), model, '1:1'),
+      // Page 2: Market Context
+      generateImage(buildMarketContextPagePrompt(brief), model, '1:1'),
+      // Page 3: Problem
+      generateImage(buildProblemPagePrompt(brief), model, '1:1'),
+      // Page 4: Transformation
+      generateImage(buildTransformationPagePrompt(brief), model, '1:1'),
+      // Page 5: Proof Pillars
+      generateImage(buildProofPillarsPagePrompt(brief), model, '1:1'),
+      // Page 6: Offer
+      generateImage(buildOfferPagePrompt(brief), model, '1:1'),
+      // Page 7: Messaging
+      generateImage(buildMessagingPagePrompt(brief), model, '1:1'),
+      // Page 8: Creative Direction
+      generateImage(buildCreativeDirectionPagePrompt(brief), model, '1:1'),
+      // Page 9: Back Cover
+      generateImage(buildBackCoverPagePrompt(businessName, brief.callToAction), model, '1:1'),
     ]);
 
   const generationTimeMs = Date.now() - startTime;
