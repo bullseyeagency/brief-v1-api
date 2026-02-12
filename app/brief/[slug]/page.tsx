@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { notFound } from 'next/navigation';
 import { Loader2, ArrowLeft, Target, Lightbulb, Shield, User, TrendingUp, Award, Zap } from 'lucide-react';
-import { CreativeBrief, Deliverables } from '@/lib/types';
+import { CreativeBrief, Deliverables, BriefImages } from '@/lib/types';
 import { ContainerScroll } from '@/components/21st/ContainerScroll';
 import DisplayCards from '@/components/21st/DisplayCards';
 import AccordionFeature from '@/components/21st/AccordionFeature';
@@ -35,6 +35,7 @@ interface BriefData {
   source_url: string;
   brief: CreativeBrief | null;
   deliverables: Deliverables | null;
+  images: BriefImages | null;
   provider: string;
   model: string;
   created_at: string;
@@ -382,17 +383,20 @@ export default function BriefPage({ params }: PageProps) {
       </section>
 
       {/* Market Context - Timeline */}
+      {/* HIDDEN: Market Context section
       <MarketContextTimeline
         marketContext={brief.marketContext}
         competitiveLandscape={brief.competitiveLandscape}
         marketTension={brief.marketTension}
       />
+      */}
 
       {/* Audience Avatars - Elegant Editorial */}
       {brief.avatars && brief.avatars.length > 0 && (
         <CustomerAvatarsElegant
           avatars={brief.avatars}
           businessName={briefData.source_url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}
+          existingImages={briefData.images?.avatars}
         />
       )}
 

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { notFound } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { CreativeBrief, Deliverables } from '@/lib/types';
+import { CreativeBrief, Deliverables, BriefImages } from '@/lib/types';
 import BriefViewer from '@/components/BriefViewer';
 import DeliverablesViewer from '@/components/DeliverablesViewer';
 
@@ -16,6 +16,7 @@ interface BriefData {
   source_url: string;
   brief: CreativeBrief | null;
   deliverables: Deliverables | null;
+  images: BriefImages | null;
   provider: string;
   model: string;
   created_at: string;
@@ -255,6 +256,7 @@ export default function BriefPage({ params }: PageProps) {
             <BriefViewer
               brief={briefData.brief}
               businessName={briefData.source_url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}
+              existingImages={briefData.images}
             />
             <DeliverablesViewer deliverables={briefData.deliverables} />
           </div>

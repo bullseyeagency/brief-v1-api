@@ -1,12 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronRight, User, Shield, Target, Lightbulb, Heart, MessageSquare, Palette, FlaskConical, Image as ImageIcon } from 'lucide-react';
 import { CreativeBrief, Avatar, ProofPillar } from '@/lib/types';
 
 interface BriefViewerProps {
   brief: CreativeBrief;
   businessName?: string;
+  existingImages?: {
+    avatars?: [string, string, string];
+    pages?: {
+      brandTruth?: string;
+      marketContext?: string;
+      problem?: string;
+      transformation?: string;
+      proofPillars?: string;
+      offer?: string;
+      messaging?: string;
+      creativeDirection?: string;
+    };
+  } | null;
 }
 
 interface SectionProps {
@@ -235,7 +248,7 @@ function ProofPillarCard({ pillar, index }: { pillar: ProofPillar; index: number
   );
 }
 
-export default function BriefViewer({ brief, businessName = 'Business' }: BriefViewerProps) {
+export default function BriefViewer({ brief, businessName = 'Business', existingImages }: BriefViewerProps) {
   // State for avatar images
   const [avatarImages, setAvatarImages] = useState<Record<number, string>>({});
   const [avatarLoading, setAvatarLoading] = useState<Record<number, boolean>>({});
@@ -243,6 +256,28 @@ export default function BriefViewer({ brief, businessName = 'Business' }: BriefV
   // State for section images
   const [sectionImages, setSectionImages] = useState<Record<string, string>>({});
   const [sectionLoading, setSectionLoading] = useState<Record<string, boolean>>({});
+
+  // Load existing images on mount
+  useEffect(() => {
+    if (existingImages) {
+      if (existingImages.avatars) {
+        const avatarMap: Record<number, string> = {};
+        existingImages.avatars.forEach((url, index) => {
+          if (url) avatarMap[index] = url;
+        });
+        setAvatarImages(avatarMap);
+      }
+      if (existingImages.pages) {
+        const sectionMap: Record<string, string> = {};
+        if (existingImages.pages.brandTruth) sectionMap['brandTruth'] = existingImages.pages.brandTruth;
+        if (existingImages.pages.marketContext) sectionMap['marketContext'] = existingImages.pages.marketContext;
+        if (existingImages.pages.problem) sectionMap['problem'] = existingImages.pages.problem;
+        if (existingImages.pages.transformation) sectionMap['transformation'] = existingImages.pages.transformation;
+        if (existingImages.pages.proofPillars) sectionMap['proofPillars'] = existingImages.pages.proofPillars;
+        setSectionImages(sectionMap);
+      }
+    }
+  }, [existingImages]);
 
   // Get image model from settings
   const getImageModel = () => {
