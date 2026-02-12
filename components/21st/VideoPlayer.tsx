@@ -163,9 +163,9 @@ const VideoPlayer = ({ src, poster }: { src?: string; poster?: string }) => {
                 >
                   <Button
                     onClick={togglePlay}
-                    variant="ghost"
+                    variant="outline"
                     size="icon"
-                    className="text-white hover:bg-[#111111d1] hover:text-white"
+                    className="text-white hover:bg-[#111111d1] hover:text-white border-white/20"
                   >
                     {isPlaying ? (
                       <Pause className="h-5 w-5" />
@@ -181,7 +181,7 @@ const VideoPlayer = ({ src, poster }: { src?: string; poster?: string }) => {
                   >
                     <Button
                       onClick={toggleMute}
-                      variant="ghost"
+                      variant="outline"
                       size="icon"
                       className="text-white hover:bg-[#111111d1] hover:text-white"
                     >
@@ -213,7 +213,7 @@ const VideoPlayer = ({ src, poster }: { src?: string; poster?: string }) => {
                   >
                     <Button
                       onClick={() => setSpeed(speed)}
-                      variant="ghost"
+                      variant="outline"
                       size="icon"
                       className={cn(
                         "text-white hover:bg-[#111111d1] hover:text-white text-xs",

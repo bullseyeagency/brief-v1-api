@@ -171,20 +171,23 @@ export async function POST(request: NextRequest) {
 
     // Step 3: Generate magazine images (optional)
     let images: BriefImages | null = null;
+    let tempImages: any = null; // Store full result including generationTimeMs
     if (generateImages) {
       try {
         console.log('[Magazine] Starting magazine image generation...');
         const businessName = cleanedCrawlResult.mainUrl.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
-        const tempImages = await generateMagazineImages(sanitizedBrief, businessName);
+        tempImages = await generateMagazineImages(sanitizedBrief, businessName);
         console.log(`[Magazine] ✅ Generated 13 images (3 avatars + cover + 8 pages + back cover)`);
 
         // Note: We need a briefId to save images, so we'll save them after database insert
-        // For now, store temporary URLs
-        images = tempImages;
+        // For now, store temporary URLs (without generationTimeMs)
+        const { generationTimeMs, ...imageUrls } = tempImages;
+        images = imageUrls;
       } catch (imageError) {
         console.error('[Magazine] ⚠️ Image generation failed, continuing without images:', imageError);
         // Don't fail the entire request if images fail
         images = null;
+        tempImages = null;
       }
     }
 
@@ -217,10 +220,10 @@ export async function POST(request: NextRequest) {
       console.log(`[Database] ✅ Brief saved with slug: ${savedBrief.public_slug}`);
 
       // Step 5: If images were generated, save them permanently to storage
-      if (images && savedBrief?.id) {
+      if (images && tempImages && savedBrief?.id) {
         try {
           console.log('[Storage] Saving magazine images to permanent storage...');
-          const permanentImages = await saveMagazineImages(savedBrief.id, images);
+          const permanentImages = await saveMagazineImages(savedBrief.id, tempImages);
 
           // Update database with permanent URLs
           const { error: updateError } = await supabase

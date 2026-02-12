@@ -25,7 +25,6 @@ import { CustomerAvatarsElegant } from '@/components/CustomerAvatarsElegant';
 import { CallToActionElegant } from '@/components/CallToActionElegant';
 import { ProofPillarsElegant } from '@/components/ProofPillarsElegant';
 import { CreativeDirectionElegant } from '@/components/CreativeDirectionElegant';
-import { DeliverablesElegant } from '@/components/DeliverablesElegant';
 
 interface PageProps {
   params: { slug: string };
@@ -505,56 +504,63 @@ export default function BriefPage({ params }: PageProps) {
                   Script
                 </h3>
                 <div className="space-y-6 text-sm">
-                  {typeof briefData.deliverables.tvCommercial30s === 'string' ? (
-                    <pre className="whitespace-pre-wrap leading-relaxed text-gray-300 font-sans">
-                      {briefData.deliverables.tvCommercial30s}
-                    </pre>
-                  ) : (
-                    <>
-                      {briefData.deliverables.tvCommercial30s.openingHook && (
-                        <div>
-                          <h4 className="font-bold text-blue-400 mb-2">Opening Hook (0-5s)</h4>
-                          <p className="text-gray-300 leading-relaxed">{briefData.deliverables.tvCommercial30s.openingHook}</p>
-                        </div>
-                      )}
-                      {briefData.deliverables.tvCommercial30s.brandIntroduction && (
-                        <div>
-                          <h4 className="font-bold text-green-400 mb-2">Brand Introduction (5-8s)</h4>
-                          <p className="text-gray-300 leading-relaxed">{briefData.deliverables.tvCommercial30s.brandIntroduction}</p>
-                        </div>
-                      )}
-                      {briefData.deliverables.tvCommercial30s.problemEstablishment && (
-                        <div>
-                          <h4 className="font-bold text-yellow-400 mb-2">Problem Establishment (8-12s)</h4>
-                          <p className="text-gray-300 leading-relaxed">{briefData.deliverables.tvCommercial30s.problemEstablishment}</p>
-                        </div>
-                      )}
-                      {briefData.deliverables.tvCommercial30s.transformation && (
-                        <div>
-                          <h4 className="font-bold text-purple-400 mb-2">Transformation (12-20s)</h4>
-                          <p className="text-gray-300 leading-relaxed">{briefData.deliverables.tvCommercial30s.transformation}</p>
-                        </div>
-                      )}
-                      {briefData.deliverables.tvCommercial30s.proofMoment && (
-                        <div>
-                          <h4 className="font-bold text-pink-400 mb-2">Proof Moment (20-25s)</h4>
-                          <p className="text-gray-300 leading-relaxed">{briefData.deliverables.tvCommercial30s.proofMoment}</p>
-                        </div>
-                      )}
-                      {briefData.deliverables.tvCommercial30s.ctaAndResolution && (
-                        <div>
-                          <h4 className="font-bold text-red-400 mb-2">CTA & Resolution (25-30s)</h4>
-                          <p className="text-gray-300 leading-relaxed">{briefData.deliverables.tvCommercial30s.ctaAndResolution}</p>
-                        </div>
-                      )}
-                      {briefData.deliverables.tvCommercial30s.visualDirections && (
-                        <div className="pt-4 border-t border-white/10">
-                          <h4 className="font-bold text-cyan-400 mb-2">Visual Directions</h4>
-                          <p className="text-gray-300 leading-relaxed">{briefData.deliverables.tvCommercial30s.visualDirections}</p>
-                        </div>
-                      )}
-                    </>
-                  )}
+                  {(() => {
+                    const commercial = briefData.deliverables.tvCommercial30s;
+                    if (typeof commercial === 'string') {
+                      return (
+                        <pre className="whitespace-pre-wrap leading-relaxed text-gray-300 font-sans">
+                          {commercial}
+                        </pre>
+                      );
+                    }
+                    const script = commercial as any;
+                    return (
+                      <>
+                        {script?.openingHook && (
+                          <div>
+                            <h4 className="font-bold text-blue-400 mb-2">Opening Hook (0-5s)</h4>
+                            <p className="text-gray-300 leading-relaxed">{script.openingHook}</p>
+                          </div>
+                        )}
+                        {script?.brandIntroduction && (
+                          <div>
+                            <h4 className="font-bold text-green-400 mb-2">Brand Introduction (5-8s)</h4>
+                            <p className="text-gray-300 leading-relaxed">{script.brandIntroduction}</p>
+                          </div>
+                        )}
+                        {script?.problemEstablishment && (
+                          <div>
+                            <h4 className="font-bold text-yellow-400 mb-2">Problem Establishment (8-12s)</h4>
+                            <p className="text-gray-300 leading-relaxed">{script.problemEstablishment}</p>
+                          </div>
+                        )}
+                        {script?.transformation && (
+                          <div>
+                            <h4 className="font-bold text-purple-400 mb-2">Transformation (12-20s)</h4>
+                            <p className="text-gray-300 leading-relaxed">{script.transformation}</p>
+                          </div>
+                        )}
+                        {script?.proofMoment && (
+                          <div>
+                            <h4 className="font-bold text-pink-400 mb-2">Proof Moment (20-25s)</h4>
+                            <p className="text-gray-300 leading-relaxed">{script.proofMoment}</p>
+                          </div>
+                        )}
+                        {script?.ctaAndResolution && (
+                          <div>
+                            <h4 className="font-bold text-red-400 mb-2">CTA & Resolution (25-30s)</h4>
+                            <p className="text-gray-300 leading-relaxed">{script.ctaAndResolution}</p>
+                          </div>
+                        )}
+                        {script?.visualDirections && (
+                          <div className="pt-4 border-t border-white/10">
+                            <h4 className="font-bold text-cyan-400 mb-2">Visual Directions</h4>
+                            <p className="text-gray-300 leading-relaxed">{script.visualDirections}</p>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
@@ -562,14 +568,6 @@ export default function BriefPage({ params }: PageProps) {
         </section>
       )}
 
-      {/* Deliverables - Elegant Editorial */}
-      {briefData.deliverables && (
-        <DeliverablesElegant
-          headlines={briefData.deliverables.headlines}
-          hooks={briefData.deliverables.hooks}
-          adScripts={briefData.deliverables.adScripts}
-        />
-      )}
 
       {/* Footer */}
       <footer className="py-12 px-6 bg-black text-white border-t border-white/10">

@@ -1,22 +1,10 @@
 "use client";
 
 import { useState } from 'react';
-
-interface Avatar {
-  name: string;
-  age: number;
-  type: 'primary' | 'secondary' | 'tertiary';
-  currentState: string;
-  desire: string;
-  conflict: string;
-  transformation: string;
-  background?: string;
-  values: string[];
-  decisionFactors: string[];
-}
+import { Avatar } from '@/lib/types';
 
 interface CustomerAvatarsElegantProps {
-  avatars: Avatar[];
+  avatars: Avatar[] | [Avatar, Avatar, Avatar];
   businessName?: string;
 }
 
@@ -178,44 +166,6 @@ export function CustomerAvatarsElegant({ avatars, businessName = 'Business' }: C
                     </p>
                   </div>
 
-                  {/* Values & Decision Factors */}
-                  {(avatar.values || avatar.decisionFactors) && (
-                    <div className="grid md:grid-cols-2 gap-8 pt-4">
-                      {/* Values */}
-                      {avatar.values && avatar.values.length > 0 && (
-                        <div>
-                          <span className="font-sans text-[9px] uppercase tracking-[0.5em] text-slate-400 block mb-4">
-                            Values
-                          </span>
-                          <ul className="space-y-2">
-                            {avatar.values.map((value, i) => (
-                              <li key={i} className="font-sans text-sm text-slate-600 flex items-start gap-2">
-                                <span className="text-slate-300 mt-1">—</span>
-                                <span>{value}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {/* Decision Factors */}
-                      {avatar.decisionFactors && avatar.decisionFactors.length > 0 && (
-                        <div>
-                          <span className="font-sans text-[9px] uppercase tracking-[0.5em] text-slate-400 block mb-4">
-                            Decision Factors
-                          </span>
-                          <ul className="space-y-2">
-                            {avatar.decisionFactors.map((factor, i) => (
-                              <li key={i} className="font-sans text-sm text-slate-600 flex items-start gap-2">
-                                <span className="text-slate-300 mt-1">—</span>
-                                <span>{factor}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
             );
