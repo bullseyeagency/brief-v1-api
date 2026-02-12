@@ -316,17 +316,15 @@ export default function BriefsListPage() {
                             Booklet
                           </button>
                           <button
-                            onClick={(e) => handleRegenerateImages(brief.id, e)}
-                            disabled={regeneratingId === brief.id}
-                            className="flex items-center gap-1 text-emerald-600 hover:text-emerald-800 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Generate magazine images (13 total)"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/brief/${brief.public_slug}/images`);
+                            }}
+                            className="flex items-center gap-1 text-emerald-600 hover:text-emerald-800 font-medium"
+                            title="Generate magazine images"
                           >
-                            {regeneratingId === brief.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <ImagePlus className="w-4 h-4" />
-                            )}
-                            {regeneratingId === brief.id ? 'Generating...' : 'Images'}
+                            <ImagePlus className="w-4 h-4" />
+                            Images
                           </button>
                           <button
                             onClick={(e) => handleDelete(brief.public_slug, e)}
