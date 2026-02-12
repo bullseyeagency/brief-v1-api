@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body: GenerateRequest = await request.json();
-    let { crawlResult, provider, model, apiKey, generateImages = false } = body;
+    let { crawlResult, provider, model, apiKey, generateImages = true } = body;
 
     if (!crawlResult) {
       return NextResponse.json({ error: 'Missing required field: crawlResult' }, { status: 400 });
