@@ -47,7 +47,8 @@ function buildAvatarImagePrompt(
     tertiary: 'accomplished, satisfied, aspirational',
   };
 
-  return `Modern graphic novel multi-panel portrait: ${avatar.name}, age ${avatar.age}. Background: ${avatar.background}. Current state: ${avatar.currentState}. Transformation: ${avatar.transformation}. Desire: "${avatar.desire}". Large center panel showing ${moodMap[avatar.type]} expression, surrounded by 4-6 panels showing journey. Top banner: "${avatar.name.toUpperCase()}'S EVOLUTION". Speech bubble with quote. Badge icons. Business: ${briefContext}. Style: clean lines, natural tones, soft pastels, beige backgrounds, subtle halftone, contemporary comic, NOT vintage.`.trim();
+  const avatarName = avatar.name || 'Customer';
+  return `Modern graphic novel multi-panel portrait: ${avatarName}, age ${avatar.age || 30}. Background: ${avatar.background || 'Professional background'}. Current state: ${avatar.currentState || 'Seeking solutions'}. Transformation: ${avatar.transformation || 'Finding success'}. Desire: "${avatar.desire || 'Better outcomes'}". Large center panel showing ${moodMap[avatar.type] || 'confident'} expression, surrounded by 4-6 panels showing journey. Top banner: "${avatarName.toUpperCase()}'S EVOLUTION". Speech bubble with quote. Badge icons. Business: ${briefContext}. Style: clean lines, natural tones, soft pastels, beige backgrounds, subtle halftone, contemporary comic, NOT vintage.`.trim();
 }
 
 /**

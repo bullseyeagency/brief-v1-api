@@ -30,7 +30,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Extract business name from source URL
-    const businessName = briefData.source_url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
+    const businessName = briefData.source_url
+      ? briefData.source_url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]
+      : 'Business';
 
     // Generate magazine images
     console.log('[Regenerate] Generating magazine images...');
