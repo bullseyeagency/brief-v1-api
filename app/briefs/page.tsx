@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { V1GeneratedBrief } from '@/lib/supabase';
-import { FileText, Clock, ExternalLink, Loader2, Trash2 } from 'lucide-react';
+import { FileText, Clock, ExternalLink, Loader2, Trash2, ImagePlus } from 'lucide-react';
 
 export default function BriefsListPage() {
   const router = useRouter();
@@ -12,6 +12,7 @@ export default function BriefsListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchBriefs() {
@@ -108,6 +109,46 @@ export default function BriefsListPage() {
       setError('Failed to delete brief');
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleRegenerateImages = async (briefId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (!confirm('Generate magazine images for this brief? This will create 13 images (3 avatars + cover + 8 pages + back cover) and may take 2-3 minutes.')) {
+      return;
+    }
+
+    setRegeneratingId(briefId);
+    setError('');
+
+    try {
+      const response = await fetch('/api/regenerate-images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ briefId }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to regenerate images');
+      }
+
+      const data = await response.json();
+      console.log('Images regenerated:', data);
+
+      // Update brief in local state with new images
+      setBriefs(prev => prev.map(b =>
+        b.id === briefId ? { ...b, images: data.images } : b
+      ));
+
+      alert(`Success! Generated 13 magazine images in ${(data.generationTimeMs / 1000).toFixed(1)}s. View them in the booklet format.`);
+    } catch (err) {
+      console.error('Error regenerating images:', err);
+      setError(err instanceof Error ? err.message : 'Failed to regenerate images');
+      alert('Failed to regenerate images. Check console for details.');
+    } finally {
+      setRegeneratingId(null);
     }
   };
 
@@ -254,7 +295,7 @@ export default function BriefsListPage() {
                             }}
                             className="text-blue-600 hover:text-blue-800 font-medium"
                           >
-                            View New
+                            New
                           </button>
                           <button
                             onClick={(e) => {
@@ -263,7 +304,29 @@ export default function BriefsListPage() {
                             }}
                             className="text-gray-600 hover:text-gray-800 font-medium"
                           >
-                            View Old
+                            Old
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/brief-booklet/${brief.public_slug}`);
+                            }}
+                            className="text-purple-600 hover:text-purple-800 font-medium"
+                          >
+                            Booklet
+                          </button>
+                          <button
+                            onClick={(e) => handleRegenerateImages(brief.id, e)}
+                            disabled={regeneratingId === brief.id}
+                            className="flex items-center gap-1 text-emerald-600 hover:text-emerald-800 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Generate magazine images (13 total)"
+                          >
+                            {regeneratingId === brief.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <ImagePlus className="w-4 h-4" />
+                            )}
+                            {regeneratingId === brief.id ? 'Generating...' : 'Images'}
                           </button>
                           <button
                             onClick={(e) => handleDelete(brief.public_slug, e)}
