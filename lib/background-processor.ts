@@ -122,13 +122,17 @@ async function fireCallback(
 export async function processBriefGeneration(options: ProcessOptions) {
   const { briefId, crawlResult, provider, model, apiKey } = options;
 
+  // Declared outside try/catch so catch block can access for failure callback
+  let briefRecord: { metadata: any; status: string; progress: number; callback_url: string | null; sophia_contact_id: string | null } | null = null;
+
   try {
     // Fetch brief status and metadata
-    const { data: briefRecord } = await supabase
+    const { data } = await supabase
       .from('v1_generated_briefs')
       .select('metadata, status, progress, callback_url, sophia_contact_id')
       .eq('id', briefId)
       .single();
+    briefRecord = data;
 
     // SAFEGUARD: Prevent duplicate processing
     if (!briefRecord) {
