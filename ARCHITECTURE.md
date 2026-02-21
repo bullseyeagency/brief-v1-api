@@ -547,7 +547,7 @@ Duplicate Processing       → Skipped silently with log
 Sophia-OS sends leads to brief generation:
 
 ```typescript
-POST https://cb-api.dalyandco.com/api/create-brief
+POST https://briefs.dalyandco.com/api/create-brief
 {
   url: "https://company.com",
   contactId: "uuid",
@@ -560,7 +560,7 @@ POST https://cb-api.dalyandco.com/api/create-brief
 
 Response: {
   success: true,
-  publicUrl: "https://cb-api.dalyandco.com/brief/abc123",
+  publicUrl: "https://briefs.dalyandco.com/brief/abc123",
   briefId: "uuid",
   status: "processing"
 }

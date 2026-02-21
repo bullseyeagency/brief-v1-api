@@ -93,6 +93,29 @@ function parseJsonResponse(content: string): unknown {
 }
 
 /**
+ * Fire webhook callback to notify the caller (e.g. Sophia OS) that a brief is done
+ */
+async function fireCallback(
+  callbackUrl: string,
+  payload: { companyId: string | null; briefId: string; status: 'completed' | 'failed'; publicUrl?: string; error?: string }
+) {
+  try {
+    const secret = process.env.BRIEF_CALLBACK_SECRET;
+    const res = await fetch(callbackUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(secret ? { 'x-callback-secret': secret } : {}),
+      },
+      body: JSON.stringify(payload),
+    });
+    console.log(`[Background] Callback fired → ${callbackUrl} (${res.status})`);
+  } catch (err) {
+    console.error('[Background] Callback failed:', err);
+  }
+}
+
+/**
  * Process brief generation in background
  * This function runs async and updates the database as it progresses
  */
@@ -103,7 +126,7 @@ export async function processBriefGeneration(options: ProcessOptions) {
     // Fetch brief status and metadata
     const { data: briefRecord } = await supabase
       .from('v1_generated_briefs')
-      .select('metadata, status, progress')
+      .select('metadata, status, progress, callback_url, sophia_contact_id')
       .eq('id', briefId)
       .single();
 
@@ -339,6 +362,25 @@ export async function processBriefGeneration(options: ProcessOptions) {
     });
 
     console.log(`[Background] ✅ Brief ${briefId} completed successfully`);
+
+    // Fire callback if provided
+    if (briefRecord?.callback_url) {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://briefs.dalyandco.com';
+      const { data: completedBrief } = await supabase
+        .from('v1_generated_briefs')
+        .select('public_slug')
+        .eq('id', briefId)
+        .single();
+      const publicUrl = completedBrief?.public_slug
+        ? `${siteUrl}/brief/${completedBrief.public_slug}`
+        : undefined;
+      await fireCallback(briefRecord.callback_url, {
+        companyId: briefRecord.sophia_contact_id || null,
+        briefId,
+        status: 'completed',
+        publicUrl,
+      });
+    }
   } catch (error) {
     console.error(`[Background] ❌ Brief ${briefId} failed:`, error);
 
@@ -348,5 +390,15 @@ export async function processBriefGeneration(options: ProcessOptions) {
       error_message: error instanceof Error ? error.message : 'Unknown error',
       log: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
     });
+
+    // Fire failure callback if provided
+    if (briefRecord?.callback_url) {
+      await fireCallback(briefRecord.callback_url, {
+        companyId: briefRecord?.sophia_contact_id || null,
+        briefId,
+        status: 'failed',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
   }
 }

@@ -7,6 +7,7 @@ interface CreateBriefRequest {
   url: string;
   contactId?: string;
   metadata?: Record<string, any>;
+  callbackUrl?: string;
 }
 
 interface CreateBriefResponse {
@@ -40,7 +41,7 @@ export async function OPTIONS() {
 export async function POST(request: NextRequest) {
   try {
     const body: CreateBriefRequest = await request.json();
-    const { url, contactId, metadata } = body;
+    const { url, contactId, metadata, callbackUrl } = body;
 
     console.log('📥 Received brief request:', {
       url,
@@ -135,6 +136,7 @@ export async function POST(request: NextRequest) {
         is_public: true,
         sophia_contact_id: contactId || null,
         metadata: metadata || null, // Store metadata (includes type: 'local' | 'shopify')
+        callback_url: callbackUrl || null,
         status: 'processing',
         progress: 30,
         current_task: 'Crawl complete',
@@ -253,7 +255,7 @@ export async function GET() {
       },
       response: {
         success: true,
-        publicUrl: 'https://cb-api.dalyandco.com/brief/abc123ef',
+        publicUrl: 'https://briefs.dalyandco.com/brief/abc123ef',
         briefId: '550e8400-e29b-41d4-a716-446655440000',
         status: 'processing',
       },
