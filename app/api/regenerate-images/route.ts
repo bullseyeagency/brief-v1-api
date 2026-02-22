@@ -48,11 +48,15 @@ export async function POST(request: NextRequest) {
     const permanentImages = await saveMagazineImages(briefId, tempImages);
     console.log('[Regenerate] ✅ Images saved permanently');
 
-    // Update database with images
+    // Update database with images + cost
     console.log('[Regenerate] Updating database...');
     const { error: updateError } = await supabase
       .from('v1_generated_briefs')
-      .update({ images: permanentImages })
+      .update({
+        images: permanentImages,
+        image_credits: tempImages.creditsUsed,
+        image_cost_usd: tempImages.imageCostUsd,
+      })
       .eq('id', briefId);
 
     if (updateError) {

@@ -52,6 +52,7 @@ export default function BriefPage({ params }: PageProps) {
   const [briefData, setBriefData] = useState<BriefData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastPolledAt, setLastPolledAt] = useState<Date | null>(null);
 
   // Fetch initial brief data
   useEffect(() => {
@@ -91,6 +92,7 @@ export default function BriefPage({ params }: PageProps) {
         const response = await fetch(`/api/brief/${slug}/status`);
         if (response.ok) {
           const status = await response.json();
+          setLastPolledAt(new Date());
 
           setBriefData((prev) => prev ? {
             ...prev,
@@ -115,7 +117,7 @@ export default function BriefPage({ params }: PageProps) {
       } catch (err) {
         console.error('Error polling status:', err);
       }
-    }, 10000); // Poll every 10 seconds
+    }, 5000); // Poll every 5 seconds
 
     return () => clearInterval(pollInterval);
   }, [slug, briefData?.status]);
@@ -198,10 +200,16 @@ export default function BriefPage({ params }: PageProps) {
             </div>
 
             {/* Estimated Time */}
-            <p className="text-center text-sm text-gray-600 mt-4">
-              Estimated time remaining: ~
-              {briefData.progress < 40 ? '60' : briefData.progress < 75 ? '30' : '10'} seconds
-            </p>
+            <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
+              <span>
+                Est. remaining: ~{briefData.progress < 40 ? '60' : briefData.progress < 75 ? '30' : '10'}s
+              </span>
+              {lastPolledAt && (
+                <span className="text-gray-400">
+                  Last checked: {lastPolledAt.toLocaleTimeString('en-US', { hour12: false })}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>

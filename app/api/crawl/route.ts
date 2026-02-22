@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { crawlWebsite } from '@/lib/crawler';
+import { crawlWebsite, BriefType } from '@/lib/crawler';
 
 export async function POST(request: NextRequest) {
   try {
-    const { url } = await request.json();
+    const { url, type } = await request.json();
 
     if (!url) {
       return NextResponse.json({ error: 'URL is required' }, { status: 400 });
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid URL format' }, { status: 400 });
     }
 
-    const result = await crawlWebsite(url);
+    const result = await crawlWebsite(url, (type as BriefType) || 'default');
 
     if (result.pages.length === 0) {
       return NextResponse.json({ error: 'Could not crawl any pages from the provided URL' }, { status: 400 });

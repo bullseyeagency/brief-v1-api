@@ -31,6 +31,15 @@ export interface GenerateOptions {
 }
 
 /**
+ * Token usage from an AI generation request
+ */
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
+/**
  * Result from an AI generation request
  */
 export interface GenerateResult {
@@ -40,6 +49,8 @@ export interface GenerateResult {
   model: string;
   /** The provider that was used */
   provider: AIProvider;
+  /** Token usage for cost tracking */
+  usage?: TokenUsage;
 }
 
 /**

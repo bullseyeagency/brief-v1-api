@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation';
 import { Globe, Sparkles, AlertCircle, Loader2 } from 'lucide-react';
 
 type AppState = 'input' | 'processing' | 'error';
+type BriefType = 'shopify' | 'local' | 'default';
 
 export default function Home() {
   const router = useRouter();
   const [url, setUrl] = useState('');
+  const [briefType, setBriefType] = useState<BriefType>('default');
   const [state, setState] = useState<AppState>('input');
   const [error, setError] = useState('');
 
@@ -36,7 +38,7 @@ export default function Home() {
       const response = await fetch('/api/create-brief', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url, metadata: { type: briefType } }),
       });
 
       if (!response.ok) {
@@ -98,6 +100,22 @@ export default function Home() {
                     className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-2">
+                  Business Type
+                </label>
+                <select
+                  id="type"
+                  value={briefType}
+                  onChange={(e) => setBriefType(e.target.value as BriefType)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg bg-white"
+                >
+                  <option value="default">Default</option>
+                  <option value="shopify">Shopify / Ecommerce</option>
+                  <option value="local">Local / Service Business</option>
+                </select>
               </div>
 
               {error && (

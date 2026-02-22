@@ -11,6 +11,12 @@ interface PageProps {
   params: { slug: string };
 }
 
+interface TokensUsed {
+  brief: { prompt: number; completion: number; total: number };
+  deliverables: { prompt: number; completion: number; total: number };
+  total: number;
+}
+
 interface BriefData {
   id: string;
   source_url: string;
@@ -26,6 +32,10 @@ interface BriefData {
   current_task?: string;
   logs: string[];
   error_message?: string;
+  tokens_used?: TokensUsed;
+  cost_usd?: number;
+  image_credits?: number;
+  image_cost_usd?: number;
 }
 
 export default function BriefPage({ params }: PageProps) {
@@ -96,7 +106,7 @@ export default function BriefPage({ params }: PageProps) {
       } catch (err) {
         console.error('Error polling status:', err);
       }
-    }, 10000); // Poll every 10 seconds
+    }, 5000); // Poll every 5 seconds
 
     return () => clearInterval(pollInterval);
   }, [slug, briefData?.status]);
@@ -226,7 +236,7 @@ export default function BriefPage({ params }: PageProps) {
               {briefData.source_url}
             </a>
           </p>
-          <div className="mt-2 flex gap-4 text-sm text-gray-500">
+          <div className="mt-2 flex flex-wrap gap-4 text-sm text-gray-500">
             <span>
               Provider: <span className="font-medium">{briefData.provider}</span>
             </span>
@@ -245,6 +255,31 @@ export default function BriefPage({ params }: PageProps) {
                 <span className="font-medium">
                   {(briefData.generation_time_ms / 1000).toFixed(1)}s
                 </span>
+              </span>
+            )}
+            {briefData.tokens_used && (
+              <span>
+                Tokens: <span className="font-medium">{briefData.tokens_used.total.toLocaleString()}</span>
+              </span>
+            )}
+            {briefData.cost_usd != null && (
+              <span>
+                AI cost: <span className="font-medium text-green-700">${briefData.cost_usd.toFixed(4)}</span>
+              </span>
+            )}
+            {briefData.image_credits != null && (
+              <span>
+                Images: <span className="font-medium">{briefData.image_credits} credits</span>
+              </span>
+            )}
+            {briefData.image_cost_usd != null && (
+              <span>
+                Image cost: <span className="font-medium text-green-700">${briefData.image_cost_usd.toFixed(4)}</span>
+              </span>
+            )}
+            {briefData.cost_usd != null && briefData.image_cost_usd != null && (
+              <span className="font-semibold text-gray-700">
+                Total: <span className="text-green-800">${(briefData.cost_usd + briefData.image_cost_usd).toFixed(4)}</span>
               </span>
             )}
           </div>

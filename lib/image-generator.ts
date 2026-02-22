@@ -32,7 +32,19 @@ export interface MagazineImageGenerationResult {
   };
   backCover: string;
   generationTimeMs: number;
+  creditsUsed: number;
+  imageCostUsd: number;
 }
+
+/** Credits consumed per image by model */
+const CREDITS_PER_IMAGE: Record<string, number> = {
+  'gemini-2.5-flash-image':           2,
+  'gemini-2.5-flash-image-hd':        5,
+  'gemini-3-pro-image-preview':       10,
+  'gemini-3-pro-image-preview-2k':    10,
+  'gemini-3-pro-image-preview-4k':    20,
+};
+const COST_PER_CREDIT = 0.01; // $10 per 1000 credits
 
 /**
  * Builds avatar image prompt in modern comic style
@@ -203,6 +215,7 @@ async function generateImage(prompt: string, model: string = 'gemini-3-pro-image
     }
 
     const data = await response.json();
+    console.log('[NanoBanana] Full response:', JSON.stringify(data, null, 2));
 
     // Check for API error
     if (data.code !== 0) {
@@ -337,7 +350,12 @@ export async function generateMagazineImages(
     ]);
 
   const generationTimeMs = Date.now() - startTime;
-  console.log(`[Magazine] ✅ All 13 images generated in ${(generationTimeMs / 1000).toFixed(1)}s`);
+
+  const creditsPerImage = CREDITS_PER_IMAGE[model] ?? 2;
+  const creditsUsed = 13 * creditsPerImage;
+  const imageCostUsd = parseFloat((creditsUsed * COST_PER_CREDIT).toFixed(4));
+
+  console.log(`[Magazine] ✅ All 13 images generated in ${(generationTimeMs / 1000).toFixed(1)}s — ${creditsUsed} credits ($${imageCostUsd})`);
 
   return {
     cover,
@@ -354,6 +372,8 @@ export async function generateMagazineImages(
     },
     backCover,
     generationTimeMs,
+    creditsUsed,
+    imageCostUsd,
   };
 }
 

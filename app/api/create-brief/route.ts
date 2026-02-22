@@ -89,11 +89,11 @@ export async function POST(request: NextRequest) {
     if (openaiKey) {
       provider = 'openai';
       apiKey = openaiKey;
-      model = 'gpt-4o';
+      model = 'gpt-5.2-2025-12-11';
     } else if (claudeKey) {
       provider = 'claude';
       apiKey = claudeKey;
-      model = 'claude-sonnet-4-20250514';
+      model = 'claude-sonnet-4-6';
     } else {
       provider = 'gemini';
       apiKey = geminiKey!;
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
     const crawlResponse = await fetch(`${request.nextUrl.origin}/api/crawl`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url }),
+      body: JSON.stringify({ url, type: metadata?.type || 'default' }),
     });
 
     if (!crawlResponse.ok) {
@@ -175,31 +175,50 @@ export async function POST(request: NextRequest) {
     const publicUrl = `${siteUrl}/brief/${newBrief.public_slug}`;
     console.log(`[API] ✅ Brief created: ${publicUrl}`);
 
-    // Step 3: Invoke Netlify background function (don't wait)
-    const backgroundUrl = `${siteUrl}/.netlify/functions/process-brief-background`;
-    console.log(`[API] Invoking background function: ${backgroundUrl}`);
+    // Step 3: Process brief — inline locally, background function in production
+    const isLocal = request.nextUrl.origin.includes('localhost');
 
-    fetch(backgroundUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    if (isLocal) {
+      // Run inline so local dev works without netlify dev
+      console.log('[API] Local environment — processing inline (no background function)');
+      processBriefGeneration({
         briefId: newBrief.id,
         crawlResult,
         provider,
         model,
         apiKey,
-      }),
-    })
-      .then(async (res) => {
-        console.log(`[API] Background function response: ${res.status}`);
-        if (!res.ok) {
-          const error = await res.text();
-          console.error(`[API] Background function error: ${error}`);
-        }
-      })
-      .catch((error) => {
-        console.error('[API] Failed to invoke background function:', error);
+      }).then(() => {
+        console.log('[API] Inline processing complete');
+      }).catch((err) => {
+        console.error('[API] Inline processing error:', err);
       });
+    } else {
+      // Production — hand off to Netlify background function (up to 10 min)
+      const backgroundUrl = `${siteUrl}/.netlify/functions/process-brief-background`;
+      console.log(`[API] Invoking background function: ${backgroundUrl}`);
+
+      fetch(backgroundUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          briefId: newBrief.id,
+          crawlResult,
+          provider,
+          model,
+          apiKey,
+        }),
+      })
+        .then(async (res) => {
+          console.log(`[API] Background function response: ${res.status}`);
+          if (!res.ok) {
+            const error = await res.text();
+            console.error(`[API] Background function error: ${error}`);
+          }
+        })
+        .catch((error) => {
+          console.error('[API] Failed to invoke background function:', error);
+        });
+    }
 
     // Step 4: Return immediately
     const response: CreateBriefResponse = {

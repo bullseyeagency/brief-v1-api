@@ -35,7 +35,7 @@ export async function uploadImageToStorage(
       .upload(fileName, imageBlob, {
         contentType: imageBlob.type,
         cacheControl: '3600',
-        upsert: false, // Don't overwrite existing files
+        upsert: true,
       });
 
     if (error) {

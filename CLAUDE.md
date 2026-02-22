@@ -78,6 +78,29 @@ Every project should have:
 - [ ] Test with more websites
 - [ ] Add PDF export feature
 
+## Active Model IDs
+
+| Provider | Model ID |
+|---|---|
+| OpenAI | `gpt-5.2-2025-12-11` |
+| Claude | `claude-sonnet-4-6` |
+| Gemini | `gemini-2.0-flash-exp` (not yet tested) |
+
+Provider priority in `create-brief/route.ts`: OpenAI → Claude → Gemini (first key found wins)
+
+## Crawler v2 — sitemap-first strategy
+
+`lib/crawler.ts` was fully rewritten (2026-02-21):
+- robots.txt discovery → platform detection → smart URL selection → BFS fallback
+- Shopify: pages allowlist + priority collections (best-sellers first) + products denylist
+- WordPress/Local: page/service/portfolio sub-sitemaps, skips post/tag/category/local, filters location pages
+- Language filter: skips /fr/, /de/, /es/ sitemaps
+- MAX_PAGES = 15
+
+Known crawl bugs to fix:
+- `wholesale`, `plan-page` collections pass Shopify collection filter — add to SHOPIFY_COLLECTION_SKIP
+- `-bottles`, `-bottle` product variants pass product denylist — add to SHOPIFY_PRODUCTS_DENYLIST
+
 ## Session Notes
 
 <!-- Add notes from each session below -->

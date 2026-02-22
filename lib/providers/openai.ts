@@ -47,6 +47,11 @@ export async function generateWithOpenAI(options: GenerateOptions): Promise<Gene
       content,
       model: selectedModel,
       provider: 'openai',
+      usage: response.usage ? {
+        promptTokens: response.usage.prompt_tokens,
+        completionTokens: response.usage.completion_tokens,
+        totalTokens: response.usage.total_tokens,
+      } : undefined,
     };
   } catch (error: any) {
     const duration = Date.now() - startTime;

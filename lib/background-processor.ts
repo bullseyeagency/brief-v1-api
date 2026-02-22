@@ -32,6 +32,8 @@ async function updateBriefStatus(
     brief?: any;
     deliverables?: any;
     error_message?: string;
+    tokens_used?: object;
+    cost_usd?: number;
   }
 ) {
   // Fetch current state to prevent backwards progress
@@ -343,6 +345,31 @@ export async function processBriefGeneration(options: ProcessOptions) {
     const sanitizedBrief = JSON.parse(sanitizeEmDashes(JSON.stringify(brief)));
     const sanitizedDeliverables = JSON.parse(sanitizeEmDashes(JSON.stringify(deliverables)));
 
+    // Calculate token usage and cost (GPT-5 pricing: $1.75/1M input, $14.00/1M output)
+    const briefUsage = briefResult.usage;
+    const delivUsage = deliverablesResult.usage;
+    let tokensUsed: object | undefined;
+    let costUsd: number | undefined;
+
+    if (briefUsage || delivUsage) {
+      const briefIn   = briefUsage?.promptTokens     ?? 0;
+      const briefOut  = briefUsage?.completionTokens ?? 0;
+      const delivIn   = delivUsage?.promptTokens     ?? 0;
+      const delivOut  = delivUsage?.completionTokens ?? 0;
+      const totalIn   = briefIn  + delivIn;
+      const totalOut  = briefOut + delivOut;
+
+      tokensUsed = {
+        brief:       { prompt: briefIn, completion: briefOut, total: briefUsage?.totalTokens ?? briefIn + briefOut },
+        deliverables:{ prompt: delivIn, completion: delivOut, total: delivUsage?.totalTokens ?? delivIn + delivOut },
+        total:        totalIn + totalOut,
+      };
+
+      costUsd = parseFloat(((totalIn * 1.75 + totalOut * 14.00) / 1_000_000).toFixed(6));
+
+      console.log(`[Background] Tokens — brief: ${briefIn}in/${briefOut}out, deliverables: ${delivIn}in/${delivOut}out, total: ${totalIn + totalOut}, cost: $${costUsd}`);
+    }
+
     await updateBriefStatus(briefId, {
       progress: 95,
       current_task: 'Deliverables complete',
@@ -363,6 +390,8 @@ export async function processBriefGeneration(options: ProcessOptions) {
       brief: sanitizedBrief,
       deliverables: sanitizedDeliverables,
       log: 'Brief generation completed successfully',
+      ...(tokensUsed !== undefined && { tokens_used: tokensUsed }),
+      ...(costUsd    !== undefined && { cost_usd: costUsd }),
     });
 
     console.log(`[Background] ✅ Brief ${briefId} completed successfully`);
