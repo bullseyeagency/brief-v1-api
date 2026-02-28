@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { notFound } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Printer } from 'lucide-react';
 import { CreativeBrief, Deliverables, BriefImages } from '@/lib/types';
 import BriefViewer from '@/components/BriefViewer';
 import DeliverablesViewer from '@/components/DeliverablesViewer';
@@ -222,9 +222,18 @@ export default function BriefPage({ params }: PageProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Creative Brief
-          </h1>
+          <div className="flex items-center justify-between mb-2">
+            <h1 className="text-4xl font-bold text-gray-900">
+              Creative Brief
+            </h1>
+            <button
+              onClick={() => window.print()}
+              className="no-print flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              <Printer className="w-4 h-4" />
+              Print / Save PDF
+            </button>
+          </div>
           <p className="text-gray-600">
             Generated from{' '}
             <a
@@ -236,51 +245,61 @@ export default function BriefPage({ params }: PageProps) {
               {briefData.source_url}
             </a>
           </p>
-          <div className="mt-2 flex flex-wrap gap-4 text-sm text-gray-500">
-            <span>
-              Provider: <span className="font-medium">{briefData.provider}</span>
-            </span>
-            <span>
-              Model: <span className="font-medium">{briefData.model}</span>
-            </span>
-            <span>
-              Generated:{' '}
-              <span className="font-medium">
-                {new Date(briefData.created_at).toLocaleDateString()}
-              </span>
-            </span>
+          <div className="mt-4 inline-grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 text-sm border border-gray-200 rounded-lg px-4 py-3 bg-gray-50">
+            {/* Platform */}
+            <span className="text-gray-500">Provider</span>
+            <span className="font-medium text-gray-800 capitalize">{briefData.provider}</span>
+
+            <span className="text-gray-500">Model</span>
+            <span className="font-medium text-gray-800">{briefData.model}</span>
+
+            <span className="text-gray-500">Generated</span>
+            <span className="font-medium text-gray-800">{new Date(briefData.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+
             {briefData.generation_time_ms && (
-              <span>
-                Time:{' '}
-                <span className="font-medium">
-                  {(briefData.generation_time_ms / 1000).toFixed(1)}s
-                </span>
-              </span>
+              <>
+                <span className="text-gray-500">Time</span>
+                <span className="font-medium text-gray-800">{(briefData.generation_time_ms / 1000).toFixed(1)}s</span>
+              </>
             )}
+
+            {/* AI cost */}
             {briefData.tokens_used && (
-              <span>
-                Tokens: <span className="font-medium">{briefData.tokens_used.total.toLocaleString()}</span>
-              </span>
+              <>
+                <span className="col-span-2 border-t border-gray-200 mt-1 pt-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">AI</span>
+                <span className="text-gray-500">Tokens</span>
+                <span className="font-medium text-gray-800">{briefData.tokens_used.total.toLocaleString()}</span>
+              </>
             )}
             {briefData.cost_usd != null && (
-              <span>
-                AI cost: <span className="font-medium text-green-700">${briefData.cost_usd.toFixed(4)}</span>
-              </span>
+              <>
+                <span className="text-gray-500">Cost</span>
+                <span className="font-medium text-green-700">${briefData.cost_usd.toFixed(4)}</span>
+              </>
             )}
+
+            {/* Image cost */}
             {briefData.image_credits != null && (
-              <span>
-                Images: <span className="font-medium">{briefData.image_credits} credits</span>
-              </span>
+              <>
+                <span className="col-span-2 border-t border-gray-200 mt-1 pt-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Images</span>
+                <span className="text-gray-500">Credits</span>
+                <span className="font-medium text-gray-800">{briefData.image_credits}</span>
+              </>
             )}
             {briefData.image_cost_usd != null && (
-              <span>
-                Image cost: <span className="font-medium text-green-700">${briefData.image_cost_usd.toFixed(4)}</span>
-              </span>
+              <>
+                <span className="text-gray-500">Cost</span>
+                <span className="font-medium text-green-700">${briefData.image_cost_usd.toFixed(4)}</span>
+              </>
             )}
+
+            {/* Total */}
             {briefData.cost_usd != null && briefData.image_cost_usd != null && (
-              <span className="font-semibold text-gray-700">
-                Total: <span className="text-green-800">${(briefData.cost_usd + briefData.image_cost_usd).toFixed(4)}</span>
-              </span>
+              <>
+                <span className="col-span-2 border-t border-gray-200 mt-1 pt-1" />
+                <span className="font-semibold text-gray-700">Total</span>
+                <span className="font-semibold text-green-800">${(briefData.cost_usd + briefData.image_cost_usd).toFixed(4)}</span>
+              </>
             )}
           </div>
         </div>

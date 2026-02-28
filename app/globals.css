@@ -5,3 +5,24 @@
 body {
   font-family: system-ui, -apple-system, sans-serif;
 }
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+  }
+
+  /* Remove gradient background */
+  .min-h-screen {
+    background: white !important;
+  }
+
+  /* Avoid page breaks inside sections */
+  .bg-white, [class*="rounded"] {
+    break-inside: avoid;
+    box-shadow: none !important;
+  }
+}
