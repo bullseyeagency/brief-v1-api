@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { notFound } from 'next/navigation';
-import { Loader2, Printer } from 'lucide-react';
+import { Loader2, Download } from 'lucide-react';
 import { CreativeBrief, Deliverables, BriefImages } from '@/lib/types';
 import BriefViewer from '@/components/BriefViewer';
 import DeliverablesViewer from '@/components/DeliverablesViewer';
@@ -226,13 +226,14 @@ export default function BriefPage({ params }: PageProps) {
             <h1 className="text-4xl font-bold text-gray-900">
               Creative Brief
             </h1>
-            <button
-              onClick={() => window.print()}
+            <a
+              href={`/api/brief/${slug}/pdf`}
+              download
               className="no-print flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition-colors"
             >
-              <Printer className="w-4 h-4" />
-              Print / Save PDF
-            </button>
+              <Download className="w-4 h-4" />
+              Download PDF
+            </a>
           </div>
           <p className="text-gray-600">
             Generated from{' '}
