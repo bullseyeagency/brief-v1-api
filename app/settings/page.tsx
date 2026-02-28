@@ -57,7 +57,7 @@ const DEFAULT_PROMPTS: Prompts = {
 
 const DEFAULT_SETTINGS: Settings = {
   keys: { claude: '', openai: '', manus: '' },
-  researchModel: { provider: 'openai', model: 'gpt-4o' },
+  researchModel: { provider: 'claude', model: 'claude-sonnet-4-6' },
   briefModel: { provider: 'claude', model: 'claude-sonnet-4-20250514' },
   imageModel: { provider: DEFAULT_IMAGE_PROVIDER, model: DEFAULT_IMAGE_MODEL },
   imagePreset: DEFAULT_IMAGE_PRESET,

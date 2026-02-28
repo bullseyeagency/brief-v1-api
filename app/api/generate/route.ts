@@ -61,14 +61,14 @@ export async function POST(request: NextRequest) {
 
       // Choose provider based on available keys
       if (!provider) {
-        if (openaiKey) {
+        if (claudeKey) {
+          provider = 'claude';
+          apiKey = claudeKey;
+          model = model || 'claude-sonnet-4-6';
+        } else if (openaiKey) {
           provider = 'openai';
           apiKey = openaiKey;
           model = model || 'gpt-4o';
-        } else if (claudeKey) {
-          provider = 'claude';
-          apiKey = claudeKey;
-          model = model || 'claude-sonnet-4-20250514';
         } else {
           provider = 'gemini';
           apiKey = geminiKey!;
