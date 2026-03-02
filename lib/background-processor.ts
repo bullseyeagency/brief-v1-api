@@ -131,32 +131,34 @@ export async function processBriefGeneration(options: ProcessOptions) {
   const { briefId, crawlResult, provider, model, apiKey } = options;
 
   // Declared outside try/catch so catch block can access for failure callback
-  let briefRecord: { metadata: any; status: string; progress: number; callback_url: string | null; sophia_contact_id: string | null } | null = null;
+  let briefRecord: { metadata: any; status: string; callback_url: string | null; sophia_contact_id: string | null } | null = null;
 
   try {
-    // Fetch brief status and metadata
-    const { data } = await supabase
+    // Atomic claim: only update if progress <= 40 and status = processing
+    // If another instance already started, this update matches 0 rows and we bail
+    const { data: claimed } = await supabase
       .from('v1_generated_briefs')
-      .select('metadata, status, progress, callback_url, sophia_contact_id')
+      .update({ progress: 41, current_task: 'Initializing...' })
+      .eq('id', briefId)
+      .eq('status', 'processing')
+      .lte('progress', 40)
+      .select('id, metadata, callback_url, sophia_contact_id');
+
+    if (!claimed || claimed.length === 0) {
+      console.log(`[Background] Brief ${briefId} already claimed by another process or not in processing state — skipping`);
+      return;
+    }
+
+    // Fetch remaining fields now that we've claimed it
+    const { data: fetchedRecord } = await supabase
+      .from('v1_generated_briefs')
+      .select('metadata, callback_url, sophia_contact_id, status')
       .eq('id', briefId)
       .single();
-    briefRecord = data;
+    briefRecord = fetchedRecord;
 
-    // SAFEGUARD: Prevent duplicate processing
     if (!briefRecord) {
-      console.error(`[Background] ❌ Brief ${briefId} not found`);
-      return;
-    }
-
-    // Skip if already completed or failed
-    if (briefRecord.status === 'completed' || briefRecord.status === 'failed') {
-      console.log(`[Background] ⚠️ Brief ${briefId} already ${briefRecord.status}, skipping`);
-      return;
-    }
-
-    // Skip if already in progress beyond 40% (likely duplicate invocation)
-    if (briefRecord.progress && briefRecord.progress > 40) {
-      console.log(`[Background] ⚠️ Brief ${briefId} already at ${briefRecord.progress}%, skipping duplicate run`);
+      console.error(`[Background] ❌ Brief ${briefId} not found after claim`);
       return;
     }
 

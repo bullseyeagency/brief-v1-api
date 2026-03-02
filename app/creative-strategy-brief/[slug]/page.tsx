@@ -74,6 +74,8 @@ export default function CreativeStrategyBriefPage({ params }: PageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastPolledAt, setLastPolledAt] = useState<Date | null>(null);
+  const [lastProgressAt, setLastProgressAt] = useState<number>(Date.now());
+  const [isStuck, setIsStuck] = useState(false);
   const [editorialSummary, setEditorialSummary] = useState<string | null>(null);
   const [editorialLoading, setEditorialLoading] = useState(false);
 
@@ -116,18 +118,26 @@ export default function CreativeStrategyBriefPage({ params }: PageProps) {
           const status = await response.json();
           setLastPolledAt(new Date());
 
-          setBriefData((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  status: status.status,
-                  progress: status.progress,
-                  current_task: status.currentTask,
-                  logs: status.logs,
-                  error_message: status.errorMessage,
-                }
-              : null
-          );
+          setBriefData((prev) => {
+            if (!prev) return null;
+
+            // Track whether progress changed to detect stuck state
+            if (status.progress !== prev.progress) {
+              setLastProgressAt(Date.now());
+              setIsStuck(false);
+            } else if (Date.now() - lastProgressAt > 3 * 60 * 1000) {
+              setIsStuck(true);
+            }
+
+            return {
+              ...prev,
+              status: status.status,
+              progress: status.progress,
+              current_task: status.currentTask,
+              logs: status.logs,
+              error_message: status.errorMessage,
+            };
+          });
 
           if (status.status === 'completed' || status.status === 'failed') {
             const fullResponse = await fetch(`/api/brief/${slug}`);
@@ -144,7 +154,7 @@ export default function CreativeStrategyBriefPage({ params }: PageProps) {
     }, 5000);
 
     return () => clearInterval(pollInterval);
-  }, [slug, briefData?.status]);
+  }, [slug, briefData?.status, lastProgressAt]);
 
   // Fetch editorial rewrite of websiteSummary once brief is completed
   useEffect(() => {
@@ -199,18 +209,35 @@ export default function CreativeStrategyBriefPage({ params }: PageProps) {
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center px-4">
         <div className="w-full max-w-lg">
           {/* Header */}
-          <div className="flex items-center gap-4 mb-8">
-            <Loader2 className="w-7 h-7 text-white animate-spin flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-white font-medium truncate">
-                {briefData.current_task || 'Processing...'}
-              </p>
-              <p className="text-gray-500 text-sm truncate">{briefData.source_url}</p>
+          {isStuck ? (
+            <div className="flex items-center gap-4 mb-8">
+              <div className="flex-1 min-w-0">
+                <div className="text-center">
+                  <p className="text-white font-medium mb-2">Taking longer than expected</p>
+                  <p className="text-gray-500 text-sm mb-6">The generation may have stalled. You can try again.</p>
+                  <a href="/" className="text-white border border-white/20 rounded-lg px-5 py-2.5 text-sm hover:bg-white/5 transition-colors">
+                    Start over
+                  </a>
+                </div>
+              </div>
+              <span className="text-2xl font-bold text-white tabular-nums">
+                {briefData.progress}%
+              </span>
             </div>
-            <span className="text-2xl font-bold text-white tabular-nums">
-              {briefData.progress}%
-            </span>
-          </div>
+          ) : (
+            <div className="flex items-center gap-4 mb-8">
+              <Loader2 className="w-7 h-7 text-white animate-spin flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-medium truncate">
+                  {briefData.current_task || 'Processing...'}
+                </p>
+                <p className="text-gray-500 text-sm truncate">{briefData.source_url}</p>
+              </div>
+              <span className="text-2xl font-bold text-white tabular-nums">
+                {briefData.progress}%
+              </span>
+            </div>
+          )}
 
           {/* Progress bar */}
           <div className="h-1 bg-white/10 rounded-full overflow-hidden mb-3">
