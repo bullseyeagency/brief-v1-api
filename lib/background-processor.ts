@@ -162,6 +162,27 @@ export async function processBriefGeneration(options: ProcessOptions) {
       return;
     }
 
+    // Fetch image generation slot settings
+    let imageSlots: Record<string, boolean> = {
+      avatars: true,
+      cover: false,
+      'pages.brandTruth': false,
+      'pages.marketContext': true,
+      'pages.problem': true,
+      'pages.transformation': true,
+      'pages.proofPillars': false,
+      'pages.offer': true,
+      'pages.messaging': false,
+      'pages.creativeDirection': false,
+      backCover: true,
+      facebookImages: true,
+      storyboardFrames: true,
+    };
+    try {
+      const { data: slotData } = await supabase.from('app_settings').select('value').eq('key', 'image_slots').single();
+      if (slotData?.value) imageSlots = slotData.value as Record<string, boolean>;
+    } catch { /* use defaults */ }
+
     const briefType = briefRecord?.metadata?.type as 'local' | 'shopify' | undefined;
     console.log(`[Background] Brief type: ${briefType || 'default'}`);
 
@@ -275,15 +296,17 @@ export async function processBriefGeneration(options: ProcessOptions) {
 
     // Run avatar generation separately — failure is non-fatal
     let avatarUrls: [string, string, string] | null = null;
-    if (nanoBananaKey) {
+    if (nanoBananaKey && imageSlots.avatars) {
       try {
         avatarUrls = await generateAvatarImages(brief, businessName, imageModel);
         console.log('[Background] Avatar images generated successfully');
       } catch (avatarError) {
         console.error('[Background] Avatar generation failed (brief will complete without images):', avatarError);
       }
-    } else {
+    } else if (!nanoBananaKey) {
       console.warn('[Background] NANOBANANA_API_KEY not configured — skipping avatar generation');
+    } else {
+      console.log('[Background] Avatar slot disabled — skipping avatar generation');
     }
 
     await updateBriefStatus(briefId, {
@@ -337,13 +360,31 @@ export async function processBriefGeneration(options: ProcessOptions) {
       log: 'Generating magazine pages and campaign images in parallel...',
     });
 
+    // Determine if any booklet-only slot is enabled
+    const anyBookletSlotEnabled =
+      imageSlots.cover ||
+      imageSlots['pages.brandTruth'] ||
+      imageSlots['pages.proofPillars'] ||
+      imageSlots['pages.messaging'] ||
+      imageSlots['pages.creativeDirection'];
+
+    // Also check if any public-page magazine slots are enabled (marketContext, problem, transformation, offer, backCover)
+    const anyMagazineSlotEnabled =
+      anyBookletSlotEnabled ||
+      imageSlots['pages.marketContext'] ||
+      imageSlots['pages.problem'] ||
+      imageSlots['pages.transformation'] ||
+      imageSlots['pages.offer'] ||
+      imageSlots.backCover;
+
     const [magazinePagesResult, campaignImagesResult] = await Promise.allSettled([
       // Magazine pages (needs brief + avatarUrls)
-      nanoBananaKey && avatarUrls
+      nanoBananaKey && avatarUrls && anyMagazineSlotEnabled
         ? generateMagazinePages(brief, businessName, avatarUrls, imageModel)
         : Promise.resolve(null),
       // Campaign images (needs deliverables)
       nanoBananaKey &&
+        (imageSlots.facebookImages || imageSlots.storyboardFrames) &&
         Array.isArray(deliverables.facebookCampaigns) &&
         (deliverables.facebookCampaigns as FacebookCampaign[]).length >= 3 &&
         deliverables.video8s
@@ -383,15 +424,25 @@ export async function processBriefGeneration(options: ProcessOptions) {
         imageCredits = 13 * creditsPerImage;
         imageCostUsd = parseFloat((imageCredits * 0.01).toFixed(4));
 
-        const tempImages: MagazineImageGenerationResult = {
-          cover: magazinePages.cover,
-          avatars: avatarUrls,
-          pages: magazinePages.pages,
-          backCover: magazinePages.backCover,
+        // Only include image slots that are enabled
+        const tempImages = {
+          cover: imageSlots.cover ? magazinePages.cover : undefined,
+          avatars: imageSlots.avatars ? avatarUrls : undefined,
+          pages: {
+            brandTruth:        imageSlots['pages.brandTruth']        ? magazinePages.pages.brandTruth        : undefined,
+            marketContext:     imageSlots['pages.marketContext']     ? magazinePages.pages.marketContext     : undefined,
+            problem:           imageSlots['pages.problem']           ? magazinePages.pages.problem           : undefined,
+            transformation:    imageSlots['pages.transformation']    ? magazinePages.pages.transformation    : undefined,
+            proofPillars:      imageSlots['pages.proofPillars']      ? magazinePages.pages.proofPillars      : undefined,
+            offer:             imageSlots['pages.offer']             ? magazinePages.pages.offer             : undefined,
+            messaging:         imageSlots['pages.messaging']         ? magazinePages.pages.messaging         : undefined,
+            creativeDirection: imageSlots['pages.creativeDirection'] ? magazinePages.pages.creativeDirection : undefined,
+          },
+          backCover: imageSlots.backCover ? magazinePages.backCover : undefined,
           generationTimeMs: 0,
           creditsUsed: imageCredits,
           imageCostUsd,
-        };
+        } as MagazineImageGenerationResult;
 
         savedImages = await saveMagazineImages(briefId, tempImages);
         console.log(`[Background] ✅ Magazine images saved — ${imageCredits} credits ($${imageCostUsd})`);

@@ -84,6 +84,23 @@ export default function SettingsPage() {
   });
   const [generatingSample, setGeneratingSample] = useState(false);
   const [sampleImageUrl, setSampleImageUrl] = useState<string | null>(null);
+  const [imageSlots, setImageSlots] = useState<Record<string, boolean>>({
+    avatars: true,
+    cover: false,
+    'pages.brandTruth': false,
+    'pages.marketContext': true,
+    'pages.problem': true,
+    'pages.transformation': true,
+    'pages.proofPillars': false,
+    'pages.offer': true,
+    'pages.messaging': false,
+    'pages.creativeDirection': false,
+    backCover: true,
+    facebookImages: true,
+    storyboardFrames: true,
+  });
+  const [slotsSaving, setSlotsSaving] = useState(false);
+  const [slotsSaved, setSlotsSaved] = useState(false);
 
   useEffect(() => {
     // Load API keys (legacy support)
@@ -98,6 +115,12 @@ export default function SettingsPage() {
       const parsed = JSON.parse(savedSettings);
       setSettings(prev => ({ ...prev, ...parsed }));
     }
+
+    // Load image slot settings from API
+    fetch('/api/settings/image-generation')
+      .then(r => r.json())
+      .then(d => { if (d.slots) setImageSlots(d.slots); })
+      .catch(() => {});
   }, []);
 
   const keys = settings.keys;
@@ -128,6 +151,23 @@ export default function SettingsPage() {
 
   const toggleAccordion = (section: PromptSection) => {
     setOpenAccordions(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const saveImageSlots = async () => {
+    setSlotsSaving(true);
+    try {
+      await fetch('/api/settings/image-generation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slots: imageSlots }),
+      });
+      setSlotsSaved(true);
+      setTimeout(() => setSlotsSaved(false), 2000);
+    } catch (e) {
+      console.error('Failed to save image slots:', e);
+    } finally {
+      setSlotsSaving(false);
+    }
   };
 
   const generateSample = async () => {
@@ -438,6 +478,89 @@ export default function SettingsPage() {
                       </div>
                     </div>
                   )}
+                </div>
+
+                {/* Images to Generate */}
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <Image className="w-4 h-4 text-gray-600" />
+                      <label className="text-sm font-medium text-gray-700">Images to Generate</label>
+                    </div>
+                    <button
+                      onClick={saveImageSlots}
+                      disabled={slotsSaving}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 transition-colors"
+                    >
+                      {slotsSaved ? <><Check className="w-3 h-3" /> Saved</> : slotsSaving ? 'Saving...' : <><Save className="w-3 h-3" /> Save</>}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mb-4">
+                    Toggle which images are generated per brief. Disabled images reduce generation time and API credits.
+                  </p>
+
+                  {/* In-use group */}
+                  <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Used in public brief page</p>
+                  <div className="space-y-2 mb-4">
+                    {[
+                      { key: 'avatars', label: 'Avatar Images', sub: '3 character portraits — Carousel + FB fallback' },
+                      { key: 'pages.marketContext', label: 'Market Context', sub: 'Brand Journey step 1' },
+                      { key: 'pages.problem', label: 'Problem', sub: 'Brand Journey step 2' },
+                      { key: 'pages.transformation', label: 'Transformation', sub: 'Brand Journey step 3' },
+                      { key: 'pages.offer', label: 'Offer', sub: 'Brand Journey step 4' },
+                      { key: 'backCover', label: 'Back Cover', sub: 'Brand Journey step 5' },
+                      { key: 'facebookImages', label: 'Facebook Ad Images', sub: '3 square ad images' },
+                      { key: 'storyboardFrames', label: 'Storyboard Frames', sub: '3 cinematic 16:9 frames' },
+                    ].map(({ key, label, sub }) => (
+                      <label key={key} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors">
+                        <div>
+                          <p className="text-sm font-medium text-gray-800">{label}</p>
+                          <p className="text-xs text-gray-500">{sub}</p>
+                        </div>
+                        <div
+                          onClick={() => setImageSlots(prev => ({ ...prev, [key]: !prev[key] }))}
+                          className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${imageSlots[key] ? 'bg-purple-600' : 'bg-gray-300'}`}
+                        >
+                          <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${imageSlots[key] ? 'translate-x-5' : 'translate-x-1'}`} />
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+
+                  {/* Booklet-only group */}
+                  <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Booklet only (not shown in public page)</p>
+                  <div className="space-y-2">
+                    {[
+                      { key: 'cover', label: 'Magazine Cover', sub: 'Booklet front cover' },
+                      { key: 'pages.brandTruth', label: 'Brand Truth', sub: 'Booklet page 1' },
+                      { key: 'pages.proofPillars', label: 'Proof Pillars', sub: 'Booklet page 5' },
+                      { key: 'pages.messaging', label: 'Messaging', sub: 'Booklet page 7' },
+                      { key: 'pages.creativeDirection', label: 'Creative Direction', sub: 'Booklet page 8' },
+                    ].map(({ key, label, sub }) => (
+                      <label key={key} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors">
+                        <div>
+                          <p className="text-sm font-medium text-gray-800">{label}</p>
+                          <p className="text-xs text-gray-500">{sub}</p>
+                        </div>
+                        <div
+                          onClick={() => setImageSlots(prev => ({ ...prev, [key]: !prev[key] }))}
+                          className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${imageSlots[key] ? 'bg-purple-600' : 'bg-gray-300'}`}
+                        >
+                          <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${imageSlots[key] ? 'translate-x-5' : 'translate-x-1'}`} />
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+
+                  {/* Credit estimate */}
+                  <div className="mt-4 p-3 bg-purple-50 rounded-lg border border-purple-100">
+                    <p className="text-xs text-purple-800">
+                      <span className="font-semibold">
+                        {Object.values(imageSlots).filter(Boolean).length} image slots enabled
+                      </span>
+                      {' '}— avatars count as 3 credits, facebookImages and storyboardFrames as 3 each.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
