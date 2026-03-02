@@ -56,6 +56,7 @@ interface BriefData {
   current_task?: string;
   logs: string[];
   error_message?: string;
+  editorial_summary: string | null;
 }
 
 function extractDomain(url: string): string {
@@ -157,10 +158,17 @@ export default function CreativeStrategyBriefPage({ params }: PageProps) {
     return () => clearInterval(pollInterval);
   }, [slug, briefData?.status, lastProgressAt]);
 
-  // Fetch editorial rewrite of websiteSummary once brief is completed
+  // Resolve editorial summary once brief is completed
   useEffect(() => {
     if (!briefData?.deliverables?.websiteSummary || briefData.status !== 'completed') return;
 
+    // If already cached in DB, use it directly — no API call needed
+    if (briefData.editorial_summary) {
+      setEditorialSummary(briefData.editorial_summary);
+      return;
+    }
+
+    // Fallback: live API call for older briefs without a cached summary
     setEditorialLoading(true);
     fetch('/api/editorial-rewrite', {
       method: 'POST',

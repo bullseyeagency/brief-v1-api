@@ -513,6 +513,82 @@ export async function processBriefGeneration(options: ProcessOptions) {
 
     console.log(`[Background] ✅ Brief ${briefId} completed successfully`);
 
+    // Generate and cache editorial summary
+    try {
+      const websiteSummary = sanitizedDeliverables?.websiteSummary as string | undefined;
+      if (websiteSummary) {
+        const EDITORIAL_SYSTEM_PROMPT = `You are an expert direct-response copywriter. Your job is to transform factual business summaries into client-oriented, benefit-driven copy that speaks directly to the reader. Rules:
+- Write in second person where natural ("you", "your customers")
+- Lead with the transformation or outcome, not the feature list
+- Keep all factual details (services, contact info, locations) but frame them as benefits
+- Break into 3-5 short paragraphs. Each paragraph = one clear idea
+- No marketing buzzwords ("world-class", "cutting-edge", "seamless")
+- Keep the same tone as the source — if it's a plumber, stay grounded; if it's a luxury brand, stay elevated
+- Output ONLY the rewritten copy, no explanation, no preamble`;
+
+        const userPrompt = `Rewrite the following business summary into client-oriented copy:\n\n${websiteSummary}\n\nBusiness context: ${crawlResult.mainUrl}`;
+
+        const openAiKey = process.env.OPENAI_API_KEY;
+        const anthropicKey = process.env.ANTHROPIC_API_KEY;
+
+        let editorialSummary: string | null = null;
+
+        if (openAiKey) {
+          const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${openAiKey}`,
+            },
+            body: JSON.stringify({
+              model: 'gpt-4o',
+              messages: [
+                { role: 'system', content: EDITORIAL_SYSTEM_PROMPT },
+                { role: 'user', content: userPrompt },
+              ],
+              max_tokens: 600,
+              temperature: 0.4,
+            }),
+          });
+          if (response.ok) {
+            const data = await response.json();
+            editorialSummary = data.choices?.[0]?.message?.content?.trim() ?? null;
+          }
+        }
+
+        if (!editorialSummary && anthropicKey) {
+          const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': anthropicKey,
+              'anthropic-version': '2023-06-01',
+            },
+            body: JSON.stringify({
+              model: 'claude-sonnet-4-6',
+              max_tokens: 600,
+              system: EDITORIAL_SYSTEM_PROMPT,
+              messages: [{ role: 'user', content: userPrompt }],
+            }),
+          });
+          if (response.ok) {
+            const data = await response.json();
+            editorialSummary = data.content?.[0]?.text?.trim() ?? null;
+          }
+        }
+
+        if (editorialSummary) {
+          await supabase
+            .from('v1_generated_briefs')
+            .update({ editorial_summary: editorialSummary })
+            .eq('id', briefId);
+          console.log('[Background] Editorial summary cached');
+        }
+      }
+    } catch (err) {
+      console.warn('[Background] Editorial summary failed (non-fatal):', err);
+    }
+
     // Fire callback if provided
     if (briefRecord?.callback_url) {
       const siteUrl = 'https://briefs.dalyandco.com';
