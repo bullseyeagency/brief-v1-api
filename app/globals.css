@@ -21,7 +21,8 @@ body {
   flex: 1; min-height: calc(100vh - 80px);
 }
 @media (max-width: 768px) { .carousel-inner { grid-template-columns: 1fr; } }
-@media (max-width: 768px) { .carousel-image-container { height: 300px; } }
+@media (max-width: 768px) { .carousel-image-container { aspect-ratio: 1 / 1; height: auto; } }
+@media (max-width: 768px) { .carousel-image-frame { inset: 0; } }
 .carousel-content { display: flex; align-items: center; padding: 4rem 3rem 4rem 5rem; }
 @media (max-width: 768px) { .carousel-content { padding: 3rem 2rem; } }
 .carousel-content-inner { max-width: 480px; }
