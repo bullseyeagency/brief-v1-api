@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { V1GeneratedBrief } from '@/lib/supabase';
-import { FileText, ExternalLink, Loader2, Trash2, ImagePlus, Sparkles, Archive } from 'lucide-react';
+import { FileText, ExternalLink, Loader2, Trash2, Sparkles, Archive, Users, Map, Image, Film, RefreshCw } from 'lucide-react';
 
 export default function BriefsListPage() {
   const router = useRouter();
@@ -12,7 +12,7 @@ export default function BriefsListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
+  const [regenerating, setRegenerating] = useState<{ briefId: string; type: string } | null>(null);
 
   useEffect(() => {
     async function fetchBriefs() {
@@ -107,43 +107,23 @@ export default function BriefsListPage() {
     }
   };
 
-  const handleRegenerateImages = async (briefId: string, e: React.MouseEvent) => {
+  const handleRegen = async (briefId: string, type: string, e: React.MouseEvent) => {
     e.stopPropagation();
-
-    if (!confirm('Generate magazine images for this brief? This will create 13 images (3 avatars + cover + 8 pages + back cover) and may take 2-3 minutes.')) {
-      return;
-    }
-
-    setRegeneratingId(briefId);
+    setRegenerating({ briefId, type });
     setError('');
-
     try {
       const response = await fetch('/api/regenerate-images', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ briefId }),
+        body: JSON.stringify({ briefId, type }),
       });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to regenerate images');
-      }
-
       const data = await response.json();
-      console.log('Images regenerated:', data);
-
-      // Update brief in local state with new images
-      setBriefs(prev => prev.map(b =>
-        b.id === briefId ? { ...b, images: data.images } : b
-      ));
-
-      alert(`Success! Generated 13 magazine images in ${(data.generationTimeMs / 1000).toFixed(1)}s. View them in the booklet format.`);
+      if (!response.ok) throw new Error(data.error || 'Failed to regenerate');
+      setBriefs(prev => prev.map(b => b.id === briefId ? { ...b, images: data.images } : b));
     } catch (err) {
-      console.error('Error regenerating images:', err);
-      setError(err instanceof Error ? err.message : 'Failed to regenerate images');
-      alert('Failed to regenerate images. Check console for details.');
+      setError(err instanceof Error ? err.message : 'Failed to regenerate');
     } finally {
-      setRegeneratingId(null);
+      setRegenerating(null);
     }
   };
 
@@ -273,7 +253,7 @@ export default function BriefsListPage() {
                         {formatDate(brief.created_at)}
                       </td>
                       <td className="px-6 py-4 text-right text-sm">
-                        <div className="flex items-center justify-end gap-4">
+                        <div className="flex items-center justify-end gap-3">
                           {/* Final */}
                           <a
                             href={`/creative-strategy-brief/${brief.public_slug}`}
@@ -288,28 +268,81 @@ export default function BriefsListPage() {
                           </a>
                           {/* Original */}
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(`/brief/${brief.public_slug}`);
-                            }}
+                            onClick={(e) => { e.stopPropagation(); router.push(`/brief/${brief.public_slug}`); }}
                             className="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-700 transition-colors"
                             title="View original brief"
                           >
                             <Archive className="w-4 h-4" />
                             <span className="text-[10px] font-medium leading-none">Original</span>
                           </button>
-                          {/* Images */}
+
+                          {/* Divider */}
+                          <div className="w-px h-8 bg-gray-200" />
+
+                          {/* Regen Avatars */}
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(`/brief/${brief.public_slug}/images`);
-                            }}
-                            className="flex flex-col items-center gap-1 text-emerald-600 hover:text-emerald-800 transition-colors"
-                            title="Manage images"
+                            onClick={(e) => handleRegen(brief.id, 'avatars', e)}
+                            disabled={!!regenerating}
+                            className="flex flex-col items-center gap-1 text-amber-600 hover:text-amber-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            title="Regenerate avatars"
                           >
-                            <ImagePlus className="w-4 h-4" />
-                            <span className="text-[10px] font-medium leading-none">Images</span>
+                            {regenerating?.briefId === brief.id && regenerating.type === 'avatars'
+                              ? <Loader2 className="w-4 h-4 animate-spin" />
+                              : <Users className="w-4 h-4" />}
+                            <span className="text-[10px] font-medium leading-none">Avatars</span>
                           </button>
+                          {/* Regen Journey */}
+                          <button
+                            onClick={(e) => handleRegen(brief.id, 'journey', e)}
+                            disabled={!!regenerating}
+                            className="flex flex-col items-center gap-1 text-amber-600 hover:text-amber-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            title="Regenerate journey pages"
+                          >
+                            {regenerating?.briefId === brief.id && regenerating.type === 'journey'
+                              ? <Loader2 className="w-4 h-4 animate-spin" />
+                              : <Map className="w-4 h-4" />}
+                            <span className="text-[10px] font-medium leading-none">Journey</span>
+                          </button>
+                          {/* Regen FB */}
+                          <button
+                            onClick={(e) => handleRegen(brief.id, 'facebook', e)}
+                            disabled={!!regenerating}
+                            className="flex flex-col items-center gap-1 text-amber-600 hover:text-amber-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            title="Regenerate Facebook ads"
+                          >
+                            {regenerating?.briefId === brief.id && regenerating.type === 'facebook'
+                              ? <Loader2 className="w-4 h-4 animate-spin" />
+                              : <Image className="w-4 h-4" />}
+                            <span className="text-[10px] font-medium leading-none">FB Ads</span>
+                          </button>
+                          {/* Regen TV */}
+                          <button
+                            onClick={(e) => handleRegen(brief.id, 'tv', e)}
+                            disabled={!!regenerating}
+                            className="flex flex-col items-center gap-1 text-amber-600 hover:text-amber-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            title="Regenerate storyboard frames"
+                          >
+                            {regenerating?.briefId === brief.id && regenerating.type === 'tv'
+                              ? <Loader2 className="w-4 h-4 animate-spin" />
+                              : <Film className="w-4 h-4" />}
+                            <span className="text-[10px] font-medium leading-none">TV</span>
+                          </button>
+                          {/* All Images */}
+                          <button
+                            onClick={(e) => handleRegen(brief.id, 'all', e)}
+                            disabled={!!regenerating}
+                            className="flex flex-col items-center gap-1 text-emerald-600 hover:text-emerald-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            title="Regenerate all 13 images"
+                          >
+                            {regenerating?.briefId === brief.id && regenerating.type === 'all'
+                              ? <Loader2 className="w-4 h-4 animate-spin" />
+                              : <RefreshCw className="w-4 h-4" />}
+                            <span className="text-[10px] font-medium leading-none">All</span>
+                          </button>
+
+                          {/* Divider */}
+                          <div className="w-px h-8 bg-gray-200" />
+
                           {/* Delete */}
                           <button
                             onClick={(e) => handleDelete(brief.public_slug, e)}
@@ -317,11 +350,9 @@ export default function BriefsListPage() {
                             className="flex flex-col items-center gap-1 text-red-500 hover:text-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                             title="Delete brief"
                           >
-                            {deletingId === brief.public_slug ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="w-4 h-4" />
-                            )}
+                            {deletingId === brief.public_slug
+                              ? <Loader2 className="w-4 h-4 animate-spin" />
+                              : <Trash2 className="w-4 h-4" />}
                             <span className="text-[10px] font-medium leading-none">Delete</span>
                           </button>
                         </div>
