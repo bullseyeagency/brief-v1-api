@@ -9,6 +9,8 @@ import { buildSystemPrompt, buildGenerationPrompt, buildLocalGenerationPrompt, b
 import { validateCreativeBrief, sanitizeEmDashes } from './validation';
 import { cleanupCrawlResult, convertToLegacyFormat } from './crawl-cleanup';
 import { CrawlResult, AIProvider, CreativeBrief, Deliverables } from './types';
+import { generateAvatarImages, generateMagazinePages, MagazineImageGenerationResult } from './image-generator';
+import { saveMagazineImages } from './image-storage';
 
 interface ProcessOptions {
   briefId: string;
@@ -34,6 +36,9 @@ async function updateBriefStatus(
     error_message?: string;
     tokens_used?: object;
     cost_usd?: number;
+    images?: object;
+    image_credits?: number;
+    image_cost_usd?: number;
   }
 ) {
   // Fetch current state to prevent backwards progress
@@ -212,35 +217,12 @@ export async function processBriefGeneration(options: ProcessOptions) {
       log: `Using ${provider} - ${model}`,
     });
 
-    // ================== DEBUG: BRIEF GENERATION REQUEST ==================
-    console.log('\n\n═══════════════════════════════════════════════════════');
-    console.log('📤 SENDING TO AI: BRIEF GENERATION');
-    console.log('═══════════════════════════════════════════════════════');
-    console.log('Provider:', provider);
-    console.log('Model:', model);
-    console.log('\n--- SYSTEM PROMPT ---');
-    console.log(systemPrompt);
-    console.log('\n--- USER PROMPT ---');
-    console.log(generationPrompt);
-    console.log('═══════════════════════════════════════════════════════\n\n');
-    // =====================================================================
-
     const briefResult = await generateWithProvider(provider, {
       systemPrompt,
       userPrompt: generationPrompt,
       apiKey,
       model,
     });
-
-    // ================== DEBUG: BRIEF GENERATION RESPONSE ==================
-    console.log('\n\n═══════════════════════════════════════════════════════');
-    console.log('📥 AI RESPONSE: BRIEF GENERATION');
-    console.log('═══════════════════════════════════════════════════════');
-    console.log('Response length:', briefResult.content.length, 'characters');
-    console.log('\n--- RAW RESPONSE ---');
-    console.log(briefResult.content);
-    console.log('═══════════════════════════════════════════════════════\n\n');
-    // ======================================================================
 
     // Parse and validate brief
     let brief: CreativeBrief;
@@ -259,38 +241,28 @@ export async function processBriefGeneration(options: ProcessOptions) {
 
     await updateBriefStatus(briefId, {
       progress: 70,
-      current_task: 'Brief generation complete',
+      current_task: 'Brief complete — starting deliverables + avatar images',
       log: `Brief generated with ${brief.avatars.length} avatars`,
     });
 
-    // Stage 3: Generate Deliverables (70-95%)
-    await updateBriefStatus(briefId, {
-      progress: 75,
-      current_task: 'Generating deliverables',
-      log: 'Building deliverables prompt...',
-    });
-
+    // Stage 3: Deliverables, then avatar images
     const deliverablesPrompt = buildDeliverablesPrompt(JSON.stringify(brief, null, 2));
+    const nanoBananaKey = process.env.NANOBANANA_API_KEY;
+    const imageModel = 'gemini-2.5-flash-image';
+    const businessName = (() => {
+      try { return new URL(crawlResult.mainUrl).hostname.replace(/^www\./, ''); }
+      catch { return 'Business'; }
+    })();
 
     await updateBriefStatus(briefId, {
-      progress: 80,
-      current_task: 'AI is generating deliverables',
-      log: 'Sending to AI for deliverables...',
+      progress: 72,
+      current_task: 'Generating deliverables + avatar images',
+      log: nanoBananaKey
+        ? 'Generating deliverables, then avatar images...'
+        : 'Generating deliverables...',
     });
 
-    // ================== DEBUG: DELIVERABLES REQUEST ==================
-    console.log('\n\n═══════════════════════════════════════════════════════');
-    console.log('📤 SENDING TO AI: DELIVERABLES GENERATION');
-    console.log('═══════════════════════════════════════════════════════');
-    console.log('Provider:', provider);
-    console.log('Model:', model);
-    console.log('\n--- SYSTEM PROMPT ---');
-    console.log('You are a creative copywriter. Generate deliverables based on the creative brief. Respond with valid JSON only.');
-    console.log('\n--- USER PROMPT ---');
-    console.log(deliverablesPrompt);
-    console.log('═══════════════════════════════════════════════════════\n\n');
-    // =================================================================
-
+    // Run deliverables first
     const deliverablesResult = await generateWithProvider(provider, {
       systemPrompt: 'You are a creative copywriter. Generate deliverables based on the creative brief. Respond with valid JSON only.',
       userPrompt: deliverablesPrompt,
@@ -298,47 +270,87 @@ export async function processBriefGeneration(options: ProcessOptions) {
       model,
     });
 
-    // ================== DEBUG: DELIVERABLES RESPONSE ==================
-    console.log('\n\n═══════════════════════════════════════════════════════');
-    console.log('📥 AI RESPONSE: DELIVERABLES GENERATION');
-    console.log('═══════════════════════════════════════════════════════');
-    console.log('Response length:', deliverablesResult.content.length, 'characters');
-    console.log('\n--- RAW RESPONSE ---');
-    console.log(deliverablesResult.content);
-    console.log('═══════════════════════════════════════════════════════\n\n');
-    // ==================================================================
+    // Run avatar generation separately — failure is non-fatal
+    let avatarUrls: [string, string, string] | null = null;
+    if (nanoBananaKey) {
+      try {
+        avatarUrls = await generateAvatarImages(brief, businessName, imageModel);
+        console.log('[Background] Avatar images generated successfully');
+      } catch (avatarError) {
+        console.error('[Background] Avatar generation failed (brief will complete without images):', avatarError);
+      }
+    } else {
+      console.warn('[Background] NANOBANANA_API_KEY not configured — skipping avatar generation');
+    }
 
+    await updateBriefStatus(briefId, {
+      progress: 85,
+      current_task: 'Generating magazine pages',
+      log: avatarUrls
+        ? `Deliverables ready. Avatars generated — starting 10 magazine pages...`
+        : 'Deliverables ready.',
+    });
+
+    // Stage 4: Magazine pages (after avatars are ready)
+    let magazinePages = null;
+    if (nanoBananaKey && avatarUrls) {
+      try {
+        magazinePages = await generateMagazinePages(brief, businessName, avatarUrls, imageModel);
+        console.log('[Background] Magazine pages generated successfully');
+        await updateBriefStatus(briefId, {
+          progress: 92,
+          current_task: 'Magazine pages complete — saving images',
+          log: 'Magazine pages generated',
+        });
+      } catch (pagesError) {
+        console.error('[Background] Magazine page generation failed (brief will complete without magazine pages):', pagesError);
+      }
+    }
+
+    // Parse deliverables
     let deliverables: Deliverables;
     try {
       deliverables = parseJsonResponse(deliverablesResult.content) as Deliverables;
       console.log('✅ Deliverables parsed successfully');
     } catch (error) {
       console.error('❌ Failed to parse deliverables JSON:', error);
-      // Fallback for new format with backwards compatibility
       deliverables = {
         websiteSummary: 'Failed to generate website summary.',
         facebookCampaigns: [],
         video8s: {
-          recognition: {
-            duration: '0-2 seconds',
-            purpose: 'Failed to generate',
-            visualDirection: 'Failed to generate',
-            voiceoverOrText: 'Failed to generate',
-          },
-          proofInContext: {
-            duration: '2-6 seconds',
-            purpose: 'Failed to generate',
-            visualDirection: 'Failed to generate',
-            voiceoverOrText: 'Failed to generate',
-          },
-          beliefLock: {
-            duration: '6-8 seconds',
-            purpose: 'Failed to generate',
-            visualDirection: 'Failed to generate',
-            voiceoverOrText: 'Failed to generate',
-          },
+          recognition: { duration: '0-2 seconds', purpose: 'Failed to generate', visualDirection: 'Failed to generate', voiceoverOrText: 'Failed to generate' },
+          proofInContext: { duration: '2-6 seconds', purpose: 'Failed to generate', visualDirection: 'Failed to generate', voiceoverOrText: 'Failed to generate' },
+          beliefLock: { duration: '6-8 seconds', purpose: 'Failed to generate', visualDirection: 'Failed to generate', voiceoverOrText: 'Failed to generate' },
         },
       };
+    }
+
+    // Stage 5: Save images to Supabase Storage
+    let savedImages: object | undefined;
+    let imageCredits: number | undefined;
+    let imageCostUsd: number | undefined;
+
+    if (nanoBananaKey && avatarUrls && magazinePages) {
+      try {
+        const creditsPerImage = 2; // gemini-2.5-flash-image
+        imageCredits = 13 * creditsPerImage;
+        imageCostUsd = parseFloat((imageCredits * 0.01).toFixed(4));
+
+        const tempImages: MagazineImageGenerationResult = {
+          cover: magazinePages.cover,
+          avatars: avatarUrls,
+          pages: magazinePages.pages,
+          backCover: magazinePages.backCover,
+          generationTimeMs: 0,
+          creditsUsed: imageCredits,
+          imageCostUsd,
+        };
+
+        savedImages = await saveMagazineImages(briefId, tempImages);
+        console.log(`[Background] ✅ Images saved — ${imageCredits} credits ($${imageCostUsd})`);
+      } catch (imgError) {
+        console.error('[Background] Image save failed (non-fatal):', imgError);
+      }
     }
 
     // Sanitize
@@ -352,37 +364,24 @@ export async function processBriefGeneration(options: ProcessOptions) {
     let costUsd: number | undefined;
 
     if (briefUsage || delivUsage) {
-      const briefIn   = briefUsage?.promptTokens     ?? 0;
-      const briefOut  = briefUsage?.completionTokens ?? 0;
-      const delivIn   = delivUsage?.promptTokens     ?? 0;
-      const delivOut  = delivUsage?.completionTokens ?? 0;
-      const totalIn   = briefIn  + delivIn;
-      const totalOut  = briefOut + delivOut;
+      const briefIn  = briefUsage?.promptTokens     ?? 0;
+      const briefOut = briefUsage?.completionTokens ?? 0;
+      const delivIn  = delivUsage?.promptTokens     ?? 0;
+      const delivOut = delivUsage?.completionTokens ?? 0;
+      const totalIn  = briefIn + delivIn;
+      const totalOut = briefOut + delivOut;
 
       tokensUsed = {
-        brief:       { prompt: briefIn, completion: briefOut, total: briefUsage?.totalTokens ?? briefIn + briefOut },
-        deliverables:{ prompt: delivIn, completion: delivOut, total: delivUsage?.totalTokens ?? delivIn + delivOut },
+        brief:        { prompt: briefIn, completion: briefOut, total: briefUsage?.totalTokens ?? briefIn + briefOut },
+        deliverables: { prompt: delivIn, completion: delivOut, total: delivUsage?.totalTokens ?? delivIn + delivOut },
         total:        totalIn + totalOut,
       };
 
       costUsd = parseFloat(((totalIn * 1.75 + totalOut * 14.00) / 1_000_000).toFixed(6));
-
       console.log(`[Background] Tokens — brief: ${briefIn}in/${briefOut}out, deliverables: ${delivIn}in/${delivOut}out, total: ${totalIn + totalOut}, cost: $${costUsd}`);
     }
 
-    await updateBriefStatus(briefId, {
-      progress: 95,
-      current_task: 'Deliverables complete',
-      log: 'Deliverables generated successfully',
-    });
-
-    // Stage 4: Complete (95-100%)
-    await updateBriefStatus(briefId, {
-      progress: 98,
-      current_task: 'Saving to database',
-      log: 'Finalizing brief...',
-    });
-
+    // Stage 6: Complete
     await updateBriefStatus(briefId, {
       status: 'completed',
       progress: 100,
@@ -390,8 +389,11 @@ export async function processBriefGeneration(options: ProcessOptions) {
       brief: sanitizedBrief,
       deliverables: sanitizedDeliverables,
       log: 'Brief generation completed successfully',
-      ...(tokensUsed !== undefined && { tokens_used: tokensUsed }),
-      ...(costUsd    !== undefined && { cost_usd: costUsd }),
+      ...(tokensUsed   !== undefined && { tokens_used: tokensUsed }),
+      ...(costUsd      !== undefined && { cost_usd: costUsd }),
+      ...(savedImages  !== undefined && { images: savedImages }),
+      ...(imageCredits !== undefined && { image_credits: imageCredits }),
+      ...(imageCostUsd !== undefined && { image_cost_usd: imageCostUsd }),
     });
 
     console.log(`[Background] ✅ Brief ${briefId} completed successfully`);
@@ -419,6 +421,7 @@ export async function processBriefGeneration(options: ProcessOptions) {
 
     await updateBriefStatus(briefId, {
       status: 'failed',
+      progress: 0,
       current_task: 'Generation failed',
       error_message: error instanceof Error ? error.message : 'Unknown error',
       log: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,

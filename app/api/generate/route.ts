@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { CrawlResult, AIProvider, CreativeBrief, Deliverables, BriefImages } from '@/lib/types';
+import { CrawlResult, AIProvider, CreativeBrief, Deliverables, BriefImages, FacebookCampaign } from '@/lib/types';
 import { generateWithProvider } from '@/lib/providers';
 import { buildSystemPrompt, buildGenerationPrompt, buildDeliverablesPrompt } from '@/lib/prompts';
 import { validateCreativeBrief, sanitizeEmDashes } from '@/lib/validation';
 import { cleanupCrawlResult, convertToLegacyFormat } from '@/lib/crawl-cleanup';
 import { supabase } from '@/lib/supabase';
-import { generateMagazineImages } from '@/lib/image-generator';
-import { saveMagazineImages } from '@/lib/image-storage';
+import { generateMagazineImages, generateCampaignImages } from '@/lib/image-generator';
+import { saveMagazineImages, saveCampaignImages } from '@/lib/image-storage';
+import { refineFacebookAdCopy } from '@/lib/ad-copy-refine';
 
 interface GenerateRequest {
   crawlResult: CrawlResult;
@@ -35,8 +36,46 @@ function parseJsonResponse(content: string): unknown {
   return JSON.parse(jsonStr);
 }
 
+/**
+ * Updates progress, current_task, and optionally appends a log entry for a brief row.
+ * All updates are gated — if briefId is null, this is a no-op.
+ */
+async function updateStatus(
+  briefId: string | null,
+  progress: number,
+  currentTask: string,
+  logEntry?: string
+): Promise<void> {
+  if (!briefId) return;
+
+  try {
+    if (logEntry) {
+      const { data } = await supabase
+        .from('v1_generated_briefs')
+        .select('logs')
+        .eq('id', briefId)
+        .single();
+      const logs = [...((data?.logs as string[]) || []), logEntry];
+      await supabase
+        .from('v1_generated_briefs')
+        .update({ progress, current_task: currentTask, logs })
+        .eq('id', briefId);
+    } else {
+      await supabase
+        .from('v1_generated_briefs')
+        .update({ progress, current_task: currentTask })
+        .eq('id', briefId);
+    }
+  } catch (err) {
+    // Non-fatal — status tracking failure should never break the pipeline
+    console.error('[StatusUpdate] Failed to update status:', err);
+  }
+}
+
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
+  let briefId: string | null = null;
+  let publicSlug: string | null = null;
 
   try {
     const body: GenerateRequest = await request.json();
@@ -79,7 +118,6 @@ export async function POST(request: NextRequest) {
         const keys: Record<AIProvider, string | undefined> = {
           openai: openaiKey,
           claude: claudeKey,
-          manus: process.env.MANUS_API_KEY,
           gemini: geminiKey,
         };
         apiKey = keys[provider];
@@ -92,7 +130,41 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Step 0: Clean and normalize crawl data
+    // Ensure provider and apiKey are set
+    if (!provider || !apiKey) {
+      return NextResponse.json(
+        { error: 'Failed to determine AI provider' },
+        { status: 500 }
+      );
+    }
+
+    // Step 0: INSERT initial row with status='processing' so the progress page
+    // can start polling immediately before any heavy work begins.
+    console.log('[Database] Inserting initial processing row...');
+    const { data: initialRow, error: initialInsertError } = await supabase
+      .from('v1_generated_briefs')
+      .insert({
+        source_url: crawlResult.mainUrl,
+        crawl_result: crawlResult,
+        status: 'processing',
+        progress: 0,
+        current_task: 'Generating creative brief...',
+        logs: [],
+        is_public: true,
+      })
+      .select('id, public_slug')
+      .single();
+
+    if (initialInsertError || !initialRow) {
+      console.error('[Database] Failed to insert initial row:', initialInsertError);
+      // Non-fatal — continue without status tracking
+    } else {
+      briefId = initialRow.id;
+      publicSlug = initialRow.public_slug;
+      console.log(`[Database] Initial row created: id=${briefId} slug=${publicSlug}`);
+    }
+
+    // Step 0b: Clean and normalize crawl data
     console.log('[Cleanup] Starting crawl data cleanup...');
     const { cleanedPages, stats } = cleanupCrawlResult(crawlResult);
     console.log('[Cleanup] Stats:', JSON.stringify(stats, null, 2));
@@ -103,14 +175,6 @@ export async function POST(request: NextRequest) {
       crawlResult.mainUrl,
       crawlResult.crawledAt
     );
-
-    // Ensure provider and apiKey are set
-    if (!provider || !apiKey) {
-      return NextResponse.json(
-        { error: 'Failed to determine AI provider' },
-        { status: 500 }
-      );
-    }
 
     // Step 1: Generate the creative brief
     const systemPrompt = buildSystemPrompt();
@@ -129,6 +193,12 @@ export async function POST(request: NextRequest) {
       brief = parseJsonResponse(briefResult.content) as CreativeBrief;
     } catch (parseError) {
       console.error('Failed to parse brief JSON:', briefResult.content);
+      if (briefId) {
+        await supabase
+          .from('v1_generated_briefs')
+          .update({ status: 'failed', error_message: 'Failed to parse AI response as JSON.' })
+          .eq('id', briefId);
+      }
       return NextResponse.json(
         { error: 'Failed to parse AI response as JSON. Please try again.' },
         { status: 500 }
@@ -141,6 +211,9 @@ export async function POST(request: NextRequest) {
       console.warn('Brief validation warnings:', validation.errors);
       // Don't fail, just log warnings - the AI might have minor issues
     }
+
+    // Update: Step 1 complete
+    await updateStatus(briefId, 35, 'Generating deliverables...', 'Creative brief generated');
 
     // Step 2: Generate deliverables
     const deliverablesPrompt = buildDeliverablesPrompt(JSON.stringify(brief, null, 2));
@@ -165,6 +238,25 @@ export async function POST(request: NextRequest) {
       };
     }
 
+    // Update: Step 2 complete
+    await updateStatus(briefId, 55, 'Refining ad copy...', 'Deliverables generated');
+
+    // Step 2b: Refine Facebook ad copy to be more emotionally resonant
+    if (Array.isArray(deliverables.facebookCampaigns) && deliverables.facebookCampaigns.length > 0) {
+      try {
+        console.log('[AdCopyRefine] Refining Facebook ad copy...');
+        const businessName = cleanedCrawlResult.mainUrl.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
+        const refined = await refineFacebookAdCopy(deliverables.facebookCampaigns, businessName);
+        deliverables.facebookCampaigns = refined as FacebookCampaign[];
+        console.log('[AdCopyRefine] Facebook ad copy refined successfully');
+      } catch (refineError) {
+        console.error('[AdCopyRefine] Refinement failed, keeping original copy:', refineError);
+      }
+    }
+
+    // Update: Step 2b complete
+    await updateStatus(briefId, 65, 'Generating images...', 'Ad copy refined');
+
     // Sanitize em dashes from all text content
     const sanitizedBrief = JSON.parse(sanitizeEmDashes(JSON.stringify(brief)));
     const sanitizedDeliverables = JSON.parse(sanitizeEmDashes(JSON.stringify(deliverables)));
@@ -177,72 +269,153 @@ export async function POST(request: NextRequest) {
         console.log('[Magazine] Starting magazine image generation...');
         const businessName = cleanedCrawlResult.mainUrl.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
         tempImages = await generateMagazineImages(sanitizedBrief, businessName);
-        console.log(`[Magazine] ✅ Generated 13 images (3 avatars + cover + 8 pages + back cover)`);
+        console.log(`[Magazine] Generated 13 images (3 avatars + cover + 8 pages + back cover)`);
 
-        // Note: We need a briefId to save images, so we'll save them after database insert
+        // Note: We need a briefId to save images, so we'll save them after database update
         // For now, store temporary URLs (without generationTimeMs)
         const { generationTimeMs, ...imageUrls } = tempImages;
         images = imageUrls;
       } catch (imageError) {
-        console.error('[Magazine] ⚠️ Image generation failed, continuing without images:', imageError);
+        console.error('[Magazine] Image generation failed, continuing without images:', imageError);
         // Don't fail the entire request if images fail
         images = null;
         tempImages = null;
       }
     }
 
+    // Update: Step 3 complete
+    await updateStatus(briefId, 80, 'Generating campaign images...', 'Magazine images generated');
+
+    // Step 3b: Generate campaign images (FB ads + storyboard) — requires deliverables
+    let tempCampaignImages: { facebookImages: [string, string, string]; storyboardFrames: [string, string, string] } | null = null;
+    if (generateImages && Array.isArray(sanitizedDeliverables.facebookCampaigns) && sanitizedDeliverables.facebookCampaigns.length >= 3 && sanitizedDeliverables.video8s) {
+      try {
+        console.log('[Campaign] Starting campaign image generation...');
+        const businessName = cleanedCrawlResult.mainUrl.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
+        tempCampaignImages = await generateCampaignImages(sanitizedDeliverables, businessName);
+        console.log('[Campaign] Generated 6 campaign images');
+        if (images) {
+          images.facebookImages = tempCampaignImages.facebookImages;
+          images.storyboardFrames = tempCampaignImages.storyboardFrames;
+        }
+      } catch (campaignImageError) {
+        console.error('[Campaign] Campaign image generation failed, continuing:', campaignImageError);
+      }
+    }
+
+    // Update: Step 3b complete
+    await updateStatus(briefId, 90, 'Saving to storage...', 'Campaign images generated');
+
     // Calculate total generation time
     const generationTimeMs = Date.now() - startTime;
 
-    // Step 4: Save to database
-    console.log('[Database] Saving brief to Supabase...');
-    const { data: savedBrief, error: dbError } = await supabase
-      .from('v1_generated_briefs')
-      .insert({
-        source_url: crawlResult.mainUrl,
-        crawl_result: crawlResult,
-        brief: sanitizedBrief,
-        deliverables: sanitizedDeliverables,
-        images: images || null,
-        provider: briefResult.provider,
-        model: briefResult.model,
-        generation_time_ms: generationTimeMs,
-        is_public: true,
-      })
-      .select('id, public_slug')
-      .single();
+    // Step 4: Update the existing row (inserted at Step 0) with full brief data.
+    // If briefId is null (initial insert failed), fall back to a fresh insert.
+    console.log('[Database] Saving brief data to Supabase...');
+    let savedBrief: { id: string; public_slug: string } | null = null;
 
-    if (dbError) {
-      console.error('[Database] Error saving brief:', dbError);
-      // Don't fail the request, just log the error
-      // User still gets the brief data
+    if (briefId) {
+      const { data: updatedBrief, error: updateError } = await supabase
+        .from('v1_generated_briefs')
+        .update({
+          brief: sanitizedBrief,
+          deliverables: sanitizedDeliverables,
+          images: images || null,
+          provider: briefResult.provider,
+          model: briefResult.model,
+          generation_time_ms: generationTimeMs,
+          is_public: true,
+        })
+        .eq('id', briefId)
+        .select('id, public_slug')
+        .single();
+
+      if (updateError) {
+        console.error('[Database] Error updating brief:', updateError);
+      } else {
+        savedBrief = updatedBrief;
+        console.log(`[Database] Brief updated: slug=${savedBrief?.public_slug}`);
+      }
     } else {
-      console.log(`[Database] ✅ Brief saved with slug: ${savedBrief.public_slug}`);
+      // Fallback: initial insert failed, so do a full insert now
+      const { data: insertedBrief, error: insertError } = await supabase
+        .from('v1_generated_briefs')
+        .insert({
+          source_url: crawlResult.mainUrl,
+          crawl_result: crawlResult,
+          brief: sanitizedBrief,
+          deliverables: sanitizedDeliverables,
+          images: images || null,
+          provider: briefResult.provider,
+          model: briefResult.model,
+          generation_time_ms: generationTimeMs,
+          is_public: true,
+          status: 'processing',
+        })
+        .select('id, public_slug')
+        .single();
 
-      // Step 5: If images were generated, save them permanently to storage
-      if (images && tempImages && savedBrief?.id) {
+      if (insertError) {
+        console.error('[Database] Error inserting brief (fallback):', insertError);
+      } else {
+        savedBrief = insertedBrief;
+        briefId = insertedBrief?.id ?? null;
+        publicSlug = insertedBrief?.public_slug ?? null;
+        console.log(`[Database] Brief inserted (fallback): slug=${publicSlug}`);
+      }
+    }
+
+    // Step 5: If images were generated, save them permanently to storage
+    if (savedBrief?.id) {
+      if (images && tempImages) {
         try {
           console.log('[Storage] Saving magazine images to permanent storage...');
           const permanentImages = await saveMagazineImages(savedBrief.id, tempImages);
 
           // Update database with permanent URLs
-          const { error: updateError } = await supabase
+          const { error: imgUpdateError } = await supabase
             .from('v1_generated_briefs')
             .update({ images: permanentImages })
             .eq('id', savedBrief.id);
 
-          if (updateError) {
-            console.error('[Storage] Error updating with permanent URLs:', updateError);
+          if (imgUpdateError) {
+            console.error('[Storage] Error updating with permanent URLs:', imgUpdateError);
           } else {
-            console.log('[Storage] ✅ Updated database with permanent magazine image URLs');
+            console.log('[Storage] Updated database with permanent magazine image URLs');
             images = permanentImages; // Return permanent URLs to user
           }
+
+          // Step 5b: Save campaign images permanently
+          if (tempCampaignImages && images) {
+            try {
+              const permanentCampaignImages = await saveCampaignImages(savedBrief.id, tempCampaignImages);
+              images.facebookImages = permanentCampaignImages.facebookImages;
+              images.storyboardFrames = permanentCampaignImages.storyboardFrames;
+              await supabase
+                .from('v1_generated_briefs')
+                .update({ images })
+                .eq('id', savedBrief.id);
+              console.log('[Storage] Campaign images saved permanently');
+            } catch (campaignStorageError) {
+              console.error('[Storage] Failed to save campaign images:', campaignStorageError);
+            }
+          }
         } catch (storageError) {
-          console.error('[Storage] ⚠️ Failed to save magazine images permanently:', storageError);
+          console.error('[Storage] Failed to save magazine images permanently:', storageError);
           // Continue with temporary URLs
         }
       }
+
+      // Mark as completed
+      await updateStatus(briefId, 100, 'Done', 'Brief saved successfully');
+      await supabase
+        .from('v1_generated_briefs')
+        .update({ status: 'completed' })
+        .eq('id', savedBrief.id);
+      console.log('[Database] Brief marked as completed');
     }
+
+    const resolvedSlug = savedBrief?.public_slug ?? publicSlug;
 
     return NextResponse.json({
       brief: sanitizedBrief,
@@ -250,11 +423,28 @@ export async function POST(request: NextRequest) {
       images: images,
       model: briefResult.model,
       provider: briefResult.provider,
-      publicUrl: savedBrief ? `/brief/${savedBrief.public_slug}` : undefined,
-      briefId: savedBrief?.id,
+      publicUrl: resolvedSlug ? `/creative-strategy-brief/${resolvedSlug}` : undefined,
+      briefId: savedBrief?.id ?? briefId,
     });
   } catch (error) {
     console.error('Generate error:', error);
+
+    // Update DB row to failed if we have a briefId
+    if (briefId) {
+      try {
+        await supabase
+          .from('v1_generated_briefs')
+          .update({
+            status: 'failed',
+            error_message: error instanceof Error ? error.message : 'Unknown error',
+          })
+          .eq('id', briefId);
+        console.log('[Database] Brief marked as failed');
+      } catch (dbErr) {
+        console.error('[Database] Failed to mark brief as failed:', dbErr);
+      }
+    }
+
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to generate brief' },
       { status: 500 }

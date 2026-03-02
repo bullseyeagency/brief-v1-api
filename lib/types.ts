@@ -90,7 +90,7 @@ export interface CrawlResult {
 
 export interface GenerationRequest {
   crawlResult: CrawlResult;
-  provider: 'claude' | 'openai' | 'manus';
+  provider: 'claude' | 'openai';
   apiKey: string;
   model?: string;
 }
@@ -140,9 +140,11 @@ export interface BriefImages {
     creativeDirection: string;// Page 8: Creative Direction (visual showcase)
   };
   backCover: string;          // Page 9: Back Cover with CTA
+  facebookImages?: [string, string, string];   // Primary, Secondary, Tertiary campaign ads
+  storyboardFrames?: [string, string, string];  // recognition, proofInContext, beliefLock (landscape)
 }
 
-export type AIProvider = 'claude' | 'openai' | 'manus' | 'gemini';
+export type AIProvider = 'claude' | 'openai' | 'gemini';
 
 export interface ProviderConfig {
   name: string;
@@ -170,13 +172,6 @@ export const PROVIDER_CONFIGS: Record<AIProvider, ProviderConfig> = {
       { id: 'gpt-4-turbo', name: 'GPT-4 Turbo' },
     ],
     defaultModel: 'gpt-4o',
-  },
-  manus: {
-    name: 'Manus',
-    models: [
-      { id: 'manus-1', name: 'Manus 1' },
-    ],
-    defaultModel: 'manus-1',
   },
   gemini: {
     name: 'Google Gemini',

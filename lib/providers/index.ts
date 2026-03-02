@@ -8,13 +8,11 @@
  * Supported providers:
  * - Claude (Anthropic) - claude.ts
  * - OpenAI (GPT-5) - openai.ts
- * - Manus - manus.ts
  */
 
 import { AIProvider } from '../types';
 import { generateWithClaude } from './claude';
 import { generateWithOpenAI } from './openai';
-import { generateWithManus } from './manus';
 
 /**
  * Options for generating content with an AI provider
@@ -59,7 +57,7 @@ export interface GenerateResult {
  * This is the main entry point for AI generation. It abstracts away
  * provider-specific implementation details.
  *
- * @param provider - The AI provider to use ('claude', 'openai', or 'manus')
+ * @param provider - The AI provider to use ('claude' or 'openai')
  * @param options - Generation options including prompts and API key
  * @returns Promise resolving to the generated content
  * @throws Error if provider is unknown or API call fails
@@ -84,8 +82,6 @@ export async function generateWithProvider(
       return generateWithClaude(options);
     case 'openai':
       return generateWithOpenAI(options);
-    case 'manus':
-      return generateWithManus(options);
     default:
       throw new Error(`Unknown provider: ${provider}`);
   }

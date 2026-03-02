@@ -40,6 +40,8 @@ export default function BriefImagesPage() {
   }>({});
   const [hasStartedGeneration, setHasStartedGeneration] = useState(false);
   const [modalImage, setModalImage] = useState<string | null>(null);
+  const [debugResult, setDebugResult] = useState<any>(null);
+  const [debugLoading, setDebugLoading] = useState(false);
 
   useEffect(() => {
     async function fetchBrief() {
@@ -167,6 +169,26 @@ export default function BriefImagesPage() {
     }
   }
 
+  async function debugSingleImage() {
+    if (!briefData || debugLoading) return;
+    setDebugLoading(true);
+    setDebugResult(null);
+    try {
+      const res = await fetch('/api/debug-nano', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ briefId: briefData.id }),
+      });
+      const json = await res.json();
+      setDebugResult(json);
+      console.log('[DebugNano] Full result:', json);
+    } catch (err) {
+      setDebugResult({ error: String(err) });
+    } finally {
+      setDebugLoading(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
@@ -224,6 +246,47 @@ export default function BriefImagesPage() {
             <p className="text-gray-600">
               <strong>Brief ID:</strong> {briefData.id}
             </p>
+          </div>
+
+          {/* DEBUG: single image test */}
+          <div className="border border-yellow-400 bg-yellow-50 rounded-lg p-4 mb-6">
+            <h2 className="text-sm font-bold text-yellow-800 mb-2">DEBUG — Test 1 Image (Primary Avatar)</h2>
+            <button
+              onClick={debugSingleImage}
+              disabled={debugLoading}
+              className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 disabled:opacity-50 text-sm"
+            >
+              {debugLoading ? 'Sending to NanoBanana...' : 'Fire 1 Image Request'}
+            </button>
+            {debugResult && (
+              <div className="mt-4 space-y-3">
+                {debugResult.debug && (
+                  <div>
+                    <p className="text-xs font-semibold text-yellow-800">Request sent:</p>
+                    <pre className="text-xs bg-white border border-yellow-200 rounded p-2 overflow-auto max-h-40 whitespace-pre-wrap">
+                      {JSON.stringify(debugResult.request, null, 2)}
+                    </pre>
+                    <p className="text-xs text-yellow-700 mt-1">
+                      Prompt ({debugResult.debug.promptLength} chars) · Model: {debugResult.debug.model} · Time: {debugResult.debug.elapsedMs}ms
+                    </p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-xs font-semibold text-yellow-800">
+                    NanoBanana response (HTTP {debugResult.response?.status}):
+                  </p>
+                  <pre className="text-xs bg-white border border-yellow-200 rounded p-2 overflow-auto max-h-60 whitespace-pre-wrap">
+                    {debugResult.response?.rawBody || JSON.stringify(debugResult, null, 2)}
+                  </pre>
+                </div>
+                {debugResult.response?.parsed?.data?.url && (
+                  <div>
+                    <p className="text-xs font-semibold text-green-700 mb-1">Image URL returned:</p>
+                    <img src={debugResult.response.parsed.data.url} alt="debug" className="max-h-48 rounded border" />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="border-t pt-6">

@@ -2,21 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { notFound } from 'next/navigation';
-import { Loader2, ArrowLeft, Target, Lightbulb, Shield, User, TrendingUp, Award, Zap } from 'lucide-react';
-import { CreativeBrief, Deliverables, BriefImages } from '@/lib/types';
-import { ContainerScroll } from '@/components/21st/ContainerScroll';
-import DisplayCards from '@/components/21st/DisplayCards';
-import AccordionFeature from '@/components/21st/AccordionFeature';
-import { TestimonialSlider } from '@/components/21st/TestimonialSlider';
-import { TestimonialCards } from '@/components/21st/TestimonialCards';
-import RadialOrbitalTimeline from '@/components/21st/RadialOrbitalTimeline';
-import { MagicText } from '@/components/21st/MagicText';
+import { Loader2, Target, Lightbulb, Shield, Award } from 'lucide-react';
+import { CreativeBrief, Deliverables, BriefImages, FacebookCampaign } from '@/lib/types';
 import { TextGradientScroll } from '@/components/21st/TextGradientScroll';
-import { MarqueeAnimation } from '@/components/21st/MarqueeAnimation';
-import VideoPlayer from '@/components/21st/VideoPlayer';
-import { CtaSection } from '@/components/21st/CtaSection';
-import { WavePath } from '@/components/21st/WavePath';
-import { CreativeCampaigns } from '@/components/21st/CreativeCampaigns';
 import { Typewriter } from '@/components/21st/Typewriter';
 import { SectionHeader } from '@/components/SectionHeader';
 import { BrandFoundationFlow } from '@/components/BrandFoundationFlow';
@@ -45,6 +33,14 @@ interface BriefData {
   current_task?: string;
   logs: string[];
   error_message?: string;
+}
+
+function extractDomain(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
+  }
 }
 
 export default function BriefPage({ params }: PageProps) {
@@ -239,76 +235,32 @@ export default function BriefPage({ params }: PageProps) {
     return null;
   }
 
-  // Prepare data for 21st.dev components
+  const domain = extractDomain(briefData.source_url);
 
-  // Brand Foundation Cards
-  const brandCards = [
-    {
-      title: "Brand Truth",
-      description: brief.brandTruth,
-      icon: <Target className="size-4 text-blue-300" />,
-      titleClassName: "text-blue-500",
-      className: "[grid-area:stack] hover:-translate-y-10 before:absolute before:w-[100%] before:outline-1 before:rounded-xl before:outline-border before:h-[100%] before:content-[''] before:bg-blend-overlay before:bg-background/50 grayscale-[100%] hover:before:opacity-0 before:transition-opacity before:duration-700 hover:grayscale-0 before:left-0 before:top-0",
-    },
-    {
-      title: "Brand Promise",
-      description: brief.brandPromise,
-      icon: <Shield className="size-4 text-green-300" />,
-      titleClassName: "text-green-500",
-      className: "[grid-area:stack] translate-x-16 translate-y-10 hover:-translate-y-1 before:absolute before:w-[100%] before:outline-1 before:rounded-xl before:outline-border before:h-[100%] before:content-[''] before:bg-blend-overlay before:bg-background/50 grayscale-[100%] hover:before:opacity-0 before:transition-opacity before:duration-700 hover:grayscale-0 before:left-0 before:top-0",
-    },
-    {
-      title: "Unique Truth",
-      description: brief.uniqueTruth,
-      icon: <Lightbulb className="size-4 text-purple-300" />,
-      titleClassName: "text-purple-500",
-      className: "[grid-area:stack] translate-x-32 translate-y-20 hover:translate-y-10",
-    },
-  ];
+  // Resolve facebook campaigns — only use array format; skip legacy string
+  const facebookCampaigns: FacebookCampaign[] | null =
+    Array.isArray(briefData.deliverables?.facebookCampaigns)
+      ? (briefData.deliverables!.facebookCampaigns as FacebookCampaign[])
+      : null;
 
-  // Market Context Accordion Features
-  const marketFeatures = [
-    {
-      id: 1,
-      title: "Market Landscape",
-      description: brief.marketContext,
-    },
-    {
-      id: 2,
-      title: "Competitive Landscape",
-      description: brief.competitiveLandscape,
-    },
-    {
-      id: 3,
-      title: "Market Tension",
-      description: brief.marketTension,
-    },
-  ];
-
-  // Avatars for Testimonial Slider
-  const avatarReviews = brief.avatars?.map((avatar, i) => ({
-    id: i,
-    name: avatar.name,
-    affiliation: `${avatar.type === 'primary' ? 'Primary Hero' : avatar.type === 'secondary' ? 'Secondary Mirror' : 'Tertiary Aspirational'} • Age ${avatar.age}`,
-    quote: avatar.desire,
-    imageSrc: `https://api.dicebear.com/7.x/avataaars/svg?seed=${avatar.name}`,
-    thumbnailSrc: `https://api.dicebear.com/7.x/avataaars/svg?seed=${avatar.name}`,
-  })) || [];
-
-  // Proof Pillars for Radial Timeline
-  const proofTimeline = brief.proofPillars?.map((pillar, i) => ({
-    id: i + 1,
-    title: pillar.claim,
-    content: pillar.evidence,
-    icon: Award,
-    relatedIds: [],
-    status: 'completed' as const,
-    energy: 85,
-  })) || [];
-
-  // Show completed brief with 21st.dev components
+  // Show completed brief
   return (
     <main className="min-h-screen bg-white">
+      {/* Sticky Navbar */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 h-14 flex items-center px-6">
+        <span className="text-sm font-medium text-gray-700 flex-1">{domain}</span>
+        <a
+          href={`/api/brief/${slug}/pdf`}
+          download
+          className="bg-black text-white text-sm font-medium px-4 py-2 rounded hover:bg-gray-900 transition-colors"
+        >
+          Download PDF
+        </a>
+      </nav>
+
+      {/* Spacer for fixed navbar */}
+      <div className="h-14" />
+
       {/* Typewriter Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center bg-white overflow-hidden">
         {/* Subtle background pattern */}
@@ -341,19 +293,7 @@ export default function BriefPage({ params }: PageProps) {
         </div>
       </section>
 
-      {/* Back Navigation */}
-      <div className="fixed top-6 left-6 z-50">
-        <a
-          href="/"
-          className="flex items-center gap-2 text-gray-600 hover:text-black transition-colors bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-gray-200"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          Back
-        </a>
-      </div>
-
-
-      {/* Website Summary Section - Text Gradient Scroll */}
+      {/* Website Summary Section */}
       {briefData.deliverables?.websiteSummary && (
         <section className="w-full bg-white py-32">
           <div className="container mx-auto max-w-4xl px-4">
@@ -364,12 +304,19 @@ export default function BriefPage({ params }: PageProps) {
               align="center"
               className="mb-16"
             />
-            <TextGradientScroll
-              text={briefData.deliverables.websiteSummary}
-              type="word"
-              textOpacity="soft"
-              className="text-lg md:text-2xl font-normal leading-relaxed text-black"
-            />
+            <div className="space-y-12">
+              {briefData.deliverables.websiteSummary
+                .split(/\n\n+/)
+                .map((paragraph, i) => (
+                  <TextGradientScroll
+                    key={i}
+                    text={paragraph.trim()}
+                    type="word"
+                    textOpacity="soft"
+                    className="text-lg md:text-2xl font-normal leading-relaxed text-black"
+                  />
+                ))}
+            </div>
           </div>
         </section>
       )}
@@ -391,20 +338,19 @@ export default function BriefPage({ params }: PageProps) {
       </section>
 
       {/* Market Context - Timeline */}
-      {/* HIDDEN: Market Context section
       <MarketContextTimeline
         marketContext={brief.marketContext}
         competitiveLandscape={brief.competitiveLandscape}
         marketTension={brief.marketTension}
       />
-      */}
 
       {/* Audience Avatars - Elegant Editorial */}
       {brief.avatars && brief.avatars.length > 0 && (
         <CustomerAvatarsElegant
           avatars={brief.avatars}
-          businessName={briefData.source_url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}
+          businessName={domain}
           existingImages={briefData.images?.avatars}
+          readOnly={true}
         />
       )}
 
@@ -414,179 +360,161 @@ export default function BriefPage({ params }: PageProps) {
       )}
 
       {/* Call to Action - Elegant Editorial */}
-      {/* <CallToActionElegant
+      <CallToActionElegant
         callToAction={brief.callToAction}
         offer={brief.offer}
         conversionPath={brief.conversionPath}
-      /> */}
+      />
 
       {/* Creative Direction - Elegant Editorial */}
-      {/* <CreativeDirectionElegant
+      <CreativeDirectionElegant
         creativeDirections={brief.creativeDirections}
         visualStyle={brief.visualStyle}
         narrativeApproach={brief.narrativeApproach}
-      /> */}
+      />
 
-      {/* Marketing Campaigns Section */}
-      <section className="py-20 px-6 bg-gradient-to-b from-white to-gray-50">
-        <div className="max-w-7xl mx-auto mb-12">
-          <SectionHeader
-            title="Marketing Campaigns"
-            subtitle="(Funnel-aligned activation strategy)"
-            description="Three campaign frameworks aligned to awareness, consideration, and conversion stages. Each stage includes objective, description, and tactical recommendations."
-            align="center"
-          />
-        </div>
-        <CreativeCampaigns
-          campaigns={[
-            {
-              name: "Awareness",
-              icon: <Target className="w-6 h-6 text-white" />,
-              objective: "Brand Discovery",
-              description: "Reach new audiences and establish brand presence in the market.",
-              tactics: [
-                "Video storytelling campaigns featuring real customers",
-                "Influencer partnerships and UGC content",
-                "Social media brand awareness ads",
-                "SEO-optimized content marketing",
-              ],
-              popular: false,
-              color: "from-blue-500 to-blue-600",
-            },
-            {
-              name: "Consideration",
-              icon: <Zap className="w-6 h-6 text-white" />,
-              objective: "Build Trust & Engagement",
-              description: "Convert interest into active consideration through proof and value demonstration.",
-              tactics: [
-                "Product demo videos and tutorials",
-                "Customer testimonial campaigns",
-                "Retargeting with social proof",
-                "Email nurture sequences",
-              ],
-              popular: true,
-              color: "from-amber-500 to-amber-600",
-            },
-            {
-              name: "Conversion",
-              icon: <TrendingUp className="w-6 h-6 text-white" />,
-              objective: "Drive Sales",
-              description: "Convert qualified leads into customers with compelling offers and clear CTAs.",
-              tactics: [
-                "Limited-time promotional campaigns",
-                "Abandoned cart recovery emails",
-                "Direct response ads with offers",
-                "Landing page optimization tests",
-              ],
-              popular: false,
-              color: "from-green-500 to-green-600",
-            },
-          ]}
-        />
-      </section>
+      {/* Marketing Campaigns Section — real data from deliverables */}
+      {facebookCampaigns && facebookCampaigns.length > 0 && (
+        <section className="py-20 px-6 bg-gradient-to-b from-white to-gray-50">
+          <div className="max-w-7xl mx-auto mb-12">
+            <SectionHeader
+              title="Marketing Campaigns"
+              subtitle="(Funnel-aligned activation strategy)"
+              description="Campaign frameworks aligned to your brand positioning. Each campaign includes objective, target audience, primary message, and call to action."
+              align="center"
+            />
+          </div>
+          <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {facebookCampaigns.map((campaign, index) => (
+              <div
+                key={index}
+                className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm flex flex-col gap-4"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <h3 className="text-lg font-semibold text-gray-900 leading-snug">
+                    {campaign.campaignName}
+                  </h3>
+                  <span className="text-xs font-medium uppercase tracking-wider text-gray-500 bg-gray-100 px-2 py-1 rounded whitespace-nowrap">
+                    {campaign.targetAvatar}
+                  </span>
+                </div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">
+                  {campaign.objective}
+                </p>
+                {campaign.description && (
+                  <p className="text-sm text-gray-600 leading-relaxed">{campaign.description}</p>
+                )}
+                {campaign.primaryText && (
+                  <div className="border-t border-gray-100 pt-4">
+                    <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-1 font-semibold">Primary Message</p>
+                    <p className="text-sm text-gray-700 leading-relaxed">{campaign.primaryText}</p>
+                  </div>
+                )}
+                {campaign.headline && (
+                  <div>
+                    <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-1 font-semibold">Headline</p>
+                    <p className="text-sm font-medium text-gray-800">{campaign.headline}</p>
+                  </div>
+                )}
+                {campaign.visualDirection && (
+                  <div className="border-t border-gray-100 pt-4">
+                    <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-1 font-semibold">Visual Direction</p>
+                    <p className="text-sm text-gray-600 italic leading-relaxed">{campaign.visualDirection}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
-      {/* 30-Second TV Commercial Section */}
+      {/* 30-Second TV Commercial Section — script only, no video player */}
       {briefData.deliverables?.tvCommercial30s && (
         <section className="py-20 px-6 bg-gradient-to-b from-gray-900 to-black text-white">
-          <div className="max-w-6xl mx-auto">
+          <div className="max-w-4xl mx-auto">
             <SectionHeader
               title="30-Second Commercial"
-              subtitle="(Broadcast-ready script & execution)"
+              subtitle="(Broadcast-ready script)"
               description="A fully scripted commercial designed for TV, YouTube, or social media. Each scene is timed, sequenced, and aligned with the brand's transformation narrative."
               align="center"
               className="[&>*]:text-white [&>h2]:text-white [&>p]:text-gray-300"
             />
 
-            <div className="grid md:grid-cols-2 gap-12 items-start">
-              {/* Video Player */}
-              <div>
-                <VideoPlayer
-                  src="/api/video-proxy?url=https://generativelanguage.googleapis.com/v1beta/files/72aysbwx5qrr:download?alt=media"
-                  poster="https://images.unsplash.com/photo-1574169208507-84376144848b?w=800&h=450&fit=crop"
-                />
-                <p className="text-sm text-gray-500 mt-4 text-center italic">
-                  * Generated using Veo 3.1 AI
-                </p>
-              </div>
-
-              {/* Script */}
-              <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 max-h-[600px] overflow-y-auto">
-                <h3 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                  <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                  Script
-                </h3>
-                <div className="space-y-6 text-sm">
-                  {(() => {
-                    const commercial = briefData.deliverables.tvCommercial30s;
-                    if (typeof commercial === 'string') {
-                      return (
-                        <pre className="whitespace-pre-wrap leading-relaxed text-gray-300 font-sans">
-                          {commercial}
-                        </pre>
-                      );
-                    }
-                    const script = commercial as any;
+            {/* Script panel — full width */}
+            <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 max-h-[600px] overflow-y-auto">
+              <h3 className="text-2xl font-bold mb-6 flex items-center gap-2">
+                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                Script
+              </h3>
+              <div className="space-y-6 text-sm">
+                {(() => {
+                  const commercial = briefData.deliverables!.tvCommercial30s;
+                  if (typeof commercial === 'string') {
                     return (
-                      <>
-                        {script?.openingHook && (
-                          <div>
-                            <h4 className="font-bold text-blue-400 mb-2">Opening Hook (0-5s)</h4>
-                            <p className="text-gray-300 leading-relaxed">{script.openingHook}</p>
-                          </div>
-                        )}
-                        {script?.brandIntroduction && (
-                          <div>
-                            <h4 className="font-bold text-green-400 mb-2">Brand Introduction (5-8s)</h4>
-                            <p className="text-gray-300 leading-relaxed">{script.brandIntroduction}</p>
-                          </div>
-                        )}
-                        {script?.problemEstablishment && (
-                          <div>
-                            <h4 className="font-bold text-yellow-400 mb-2">Problem Establishment (8-12s)</h4>
-                            <p className="text-gray-300 leading-relaxed">{script.problemEstablishment}</p>
-                          </div>
-                        )}
-                        {script?.transformation && (
-                          <div>
-                            <h4 className="font-bold text-purple-400 mb-2">Transformation (12-20s)</h4>
-                            <p className="text-gray-300 leading-relaxed">{script.transformation}</p>
-                          </div>
-                        )}
-                        {script?.proofMoment && (
-                          <div>
-                            <h4 className="font-bold text-pink-400 mb-2">Proof Moment (20-25s)</h4>
-                            <p className="text-gray-300 leading-relaxed">{script.proofMoment}</p>
-                          </div>
-                        )}
-                        {script?.ctaAndResolution && (
-                          <div>
-                            <h4 className="font-bold text-red-400 mb-2">CTA & Resolution (25-30s)</h4>
-                            <p className="text-gray-300 leading-relaxed">{script.ctaAndResolution}</p>
-                          </div>
-                        )}
-                        {script?.visualDirections && (
-                          <div className="pt-4 border-t border-white/10">
-                            <h4 className="font-bold text-cyan-400 mb-2">Visual Directions</h4>
-                            <p className="text-gray-300 leading-relaxed">{script.visualDirections}</p>
-                          </div>
-                        )}
-                      </>
+                      <pre className="whitespace-pre-wrap leading-relaxed text-gray-300 font-sans">
+                        {commercial}
+                      </pre>
                     );
-                  })()}
-                </div>
+                  }
+                  const script = commercial as Record<string, string>;
+                  return (
+                    <>
+                      {script?.openingHook && (
+                        <div>
+                          <h4 className="font-bold text-blue-400 mb-2">Opening Hook (0-5s)</h4>
+                          <p className="text-gray-300 leading-relaxed">{script.openingHook}</p>
+                        </div>
+                      )}
+                      {script?.brandIntroduction && (
+                        <div>
+                          <h4 className="font-bold text-green-400 mb-2">Brand Introduction (5-8s)</h4>
+                          <p className="text-gray-300 leading-relaxed">{script.brandIntroduction}</p>
+                        </div>
+                      )}
+                      {script?.problemEstablishment && (
+                        <div>
+                          <h4 className="font-bold text-yellow-400 mb-2">Problem Establishment (8-12s)</h4>
+                          <p className="text-gray-300 leading-relaxed">{script.problemEstablishment}</p>
+                        </div>
+                      )}
+                      {script?.transformation && (
+                        <div>
+                          <h4 className="font-bold text-purple-400 mb-2">Transformation (12-20s)</h4>
+                          <p className="text-gray-300 leading-relaxed">{script.transformation}</p>
+                        </div>
+                      )}
+                      {script?.proofMoment && (
+                        <div>
+                          <h4 className="font-bold text-pink-400 mb-2">Proof Moment (20-25s)</h4>
+                          <p className="text-gray-300 leading-relaxed">{script.proofMoment}</p>
+                        </div>
+                      )}
+                      {script?.ctaAndResolution && (
+                        <div>
+                          <h4 className="font-bold text-red-400 mb-2">CTA & Resolution (25-30s)</h4>
+                          <p className="text-gray-300 leading-relaxed">{script.ctaAndResolution}</p>
+                        </div>
+                      )}
+                      {script?.visualDirections && (
+                        <div className="pt-4 border-t border-white/10">
+                          <h4 className="font-bold text-cyan-400 mb-2">Visual Directions</h4>
+                          <p className="text-gray-300 leading-relaxed">{script.visualDirections}</p>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>
         </section>
       )}
 
-
       {/* Footer */}
       <footer className="py-12 px-6 bg-black text-white border-t border-white/10">
         <div className="max-w-6xl mx-auto text-center">
           <p className="text-gray-400">
             Generated {new Date(briefData.created_at).toLocaleDateString()}
-            {briefData.generation_time_ms && ` • ${(briefData.generation_time_ms / 1000).toFixed(1)}s`}
           </p>
           <p className="text-gray-500 text-sm mt-2">Powered by Brief v1 API • {briefData.provider} • {briefData.model}</p>
         </div>

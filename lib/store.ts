@@ -29,7 +29,7 @@ export interface BriefOutput {
   brief: CreativeBrief;
   /** Generated deliverables (summary, ads, commercial) */
   deliverables: Deliverables;
-  /** AI provider used (claude, openai, manus) */
+  /** AI provider used (claude, openai, gemini) */
   provider: string;
   /** Model ID used for generation */
   model: string;

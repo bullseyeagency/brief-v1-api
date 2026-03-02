@@ -2,12 +2,12 @@
 
 > URL-to-Brief automation using the Mercenary Creative System
 
-Transform any website into a complete creative brief with AI-powered analysis. Supports multiple AI providers (Claude, OpenAI, Manus).
+Transform any website into a complete creative brief with AI-powered analysis. Supports multiple AI providers (Claude, OpenAI, Gemini).
 
 ## Features
 
 - **Website Crawling**: Automatically crawls up to 10 pages from any URL
-- **Multi-Provider AI**: Choose between Claude, OpenAI (GPT-5), or Manus
+- **Multi-Provider AI**: Choose between Claude, OpenAI (GPT-5), or Gemini
 - **Mercenary Creative System**: Generates briefs following the 6-pillar cinematic arc
 - **Progress Tracking**: Real-time progress bar and task log
 - **Debug Console**: View exact prompts sent to AI
@@ -48,7 +48,7 @@ Open [http://localhost:3000](http://localhost:3000)
 ### Usage
 
 1. Enter a website URL
-2. Select AI provider (Claude, OpenAI, or Manus)
+2. Select AI provider (Claude, OpenAI, or Gemini)
 3. Enter your API key
 4. Click "Generate Creative Brief"
 5. View results on `/brand-output` page

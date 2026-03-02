@@ -9,7 +9,6 @@ import { VIDEO_PRESETS, DEFAULT_VIDEO_PRESET, VIDEO_PROVIDERS, DEFAULT_VIDEO_PRO
 interface SavedKeys {
   claude: string;
   openai: string;
-  manus: string;
 }
 
 interface ModelSelection {
@@ -56,7 +55,7 @@ const DEFAULT_PROMPTS: Prompts = {
 };
 
 const DEFAULT_SETTINGS: Settings = {
-  keys: { claude: '', openai: '', manus: '' },
+  keys: { claude: '', openai: '' },
   researchModel: { provider: 'claude', model: 'claude-sonnet-4-6' },
   briefModel: { provider: 'claude', model: 'claude-sonnet-4-20250514' },
   imageModel: { provider: DEFAULT_IMAGE_PROVIDER, model: DEFAULT_IMAGE_MODEL },
@@ -77,7 +76,6 @@ export default function SettingsPage() {
   const [visibleKeys, setVisibleKeys] = useState<Record<keyof SavedKeys, boolean>>({
     claude: false,
     openai: false,
-    manus: false,
   });
   const [openAccordions, setOpenAccordions] = useState<Record<PromptSection, boolean>>({
     promise: true,
@@ -280,32 +278,7 @@ export default function SettingsPage() {
                 )}
               </div>
 
-              {/* Manus API Key */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Manus API Key
-                </label>
-                <div className="relative">
-                  <input
-                    type={visibleKeys.manus ? 'text' : 'password'}
-                    value={keys.manus}
-                    onChange={(e) => updateKeys('manus', e.target.value)}
-                    placeholder="manus-..."
-                    className="w-full px-4 py-2.5 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setVisibleKeys(v => ({ ...v, manus: !v.manus }))}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {visibleKeys.manus ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                {keys.manus && !visibleKeys.manus && (
-                  <p className="text-xs text-gray-500 mt-1">Ends with: ...{keys.manus.slice(-4)}</p>
-                )}
-              </div>
-              </div>
+</div>
             </div>
           )}
 

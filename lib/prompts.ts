@@ -288,116 +288,198 @@ Generate the complete JSON now.`;
 export function buildLocalGenerationPrompt(crawlResult: CrawlResult): string {
   const websiteSummary = summarizeCrawlResult(crawlResult);
 
-  return `Analyze the following LOCAL SERVICE BUSINESS website and generate a complete Creative Brief.
+  return `CONTEXT
+You are generating a Creative Brief for a LOCAL SERVICE BUSINESS.
 
-## Business Type: Local Service Business
-This is a location-based service business serving a specific geographic area. When analyzing and creating the brief:
+Business Type: Local Service Business (trades, contractors, home services)
 
-### Key Focus Areas:
-- **Geographic Service Area**: Emphasize their local market presence and service radius
-- **Local Trust & Reputation**: Highlight community involvement, local reviews, word-of-mouth
-- **Personal Service**: Focus on the human element, personal relationships, face-to-face interaction
-- **Reliability & Expertise**: Local credentials, years in community, local certifications
-- **Convenience**: Proximity benefits, response time, local availability
+This is a location-based business serving a defined geographic market. The business earns trust through personal reputation, community presence, and consistent results. Price is rarely the primary decision factor.
 
-### Avatar Considerations:
-- Customers prioritize proximity and local reputation over price
-- Decision factors: trust, convenience, personal connection, local expertise
-- Current state: frustrated with generic/distant options, want reliable local help
-- Transformation: from anxious about quality to confident in local expert
+────────────────────────────────
+BUSINESS CONTEXT MODIFIERS
+────────────────────────────────
 
-### Proof Pillar Priorities:
-1. Local testimonials and community reputation
-2. Years serving the local area
-3. Local certifications and credentials
-4. Before/after results in the community
-5. Response time and local availability
+Key focus areas for this business type:
 
-## Website Content
+- Geographic market presence and defined service area
+- Personal reputation and word of mouth
+- Community tenure and years in market
+- Response time and local availability
+- Owner or technician as the face of the business
+
+Customer decision context:
+
+- Customers choose based on trust, not price
+- Customers fear hiring the wrong contractor and being taken advantage of
+- Customers want reliability and accountability more than the cheapest option
+- Customers rely on neighbor referrals, local reviews, and visible proof of work
+- Proximity and personal familiarity reduce anxiety before a purchase decision
+
+────────────────────────────────
+AVATAR CONSTRAINTS
+────────────────────────────────
+
+Avatars must reflect LOCAL BUYERS and HOMEOWNERS.
+
+- Psychographic first, not demographic
+- Motivated by reliability, trust, and peace of mind
+- Anxious about contractor quality, hidden costs, and being misled
+- Transformation should be subtle and realistic
+
+Exactly three avatars are required:
+- Primary Hero
+- Secondary Mirror
+- Tertiary Aspirational
+
+────────────────────────────────
+PROOF PRIORITY GUIDANCE
+────────────────────────────────
+
+Proof pillars should prioritize real local evidence found on the website, such as:
+
+1. Local customer testimonials with neighborhood or name callouts
+2. Years serving the community or founding story
+3. Before and after work photos from real local jobs
+4. Local certifications, licenses, or trade credentials
+5. Response time guarantees or availability commitments
+
+Do not invent proof.
+If evidence is thin, reduce confidence, not specificity.
+
+────────────────────────────────
+WEBSITE CONTENT
+────────────────────────────────
+
 ${websiteSummary}
 
-## Required Output Schema
+────────────────────────────────
+REQUIRED OUTPUT SCHEMA
+────────────────────────────────
+
 Generate a JSON object with this exact structure:
 
 {
-  "brandTruth": "string - the core truth about what this brand stands for",
-  "brandPromise": "string - what the brand promises to deliver",
-  "uniqueTruth": "string - what makes this brand uniquely credible",
+  "brandTruth": "string",
+  "brandPromise": "string",
+  "uniqueTruth": "string",
 
-  "marketContext": "string - the LOCAL market landscape and dynamics",
-  "competitiveLandscape": "string - local competitors and positioning",
-  "marketTension": "string - the tension or gap in the LOCAL market",
+  "marketContext": "string",
+  "competitiveLandscape": "string",
+  "marketTension": "string",
 
   "avatars": [
     {
       "type": "primary",
-      "name": "string - realistic name",
+      "name": "string",
       "age": number,
-      "background": "string - who they are (include LOCAL context)",
-      "currentState": "string - where they are now (LOCAL pain points)",
-      "desire": "string - what they want (LOCAL solution)",
-      "conflict": "string - what's stopping them (LOCAL friction)",
-      "transformation": "string - how they change (LOCAL benefit)",
-      "moralArc": "string - what they learn",
+      "background": "string",
+      "currentState": "string",
+      "desire": "string",
+      "conflict": "string",
+      "transformation": "string",
+      "moralArc": "string",
       "featureBenefits": [
         { "feature": "string", "benefit": "string", "wiifm": "string" },
         { "feature": "string", "benefit": "string", "wiifm": "string" },
         { "feature": "string", "benefit": "string", "wiifm": "string" }
       ],
-      "cinematicImagePrompt": "string - detailed image generation prompt"
+      "cinematicImagePrompt": "string"
     },
     {
       "type": "secondary",
-      ... (same structure, Mirror Avatar - someone who reflects the hero's journey)
+      "name": "string",
+      "age": number,
+      "background": "string",
+      "currentState": "string",
+      "desire": "string",
+      "conflict": "string",
+      "transformation": "string",
+      "moralArc": "string",
+      "featureBenefits": [
+        { "feature": "string", "benefit": "string", "wiifm": "string" },
+        { "feature": "string", "benefit": "string", "wiifm": "string" },
+        { "feature": "string", "benefit": "string", "wiifm": "string" }
+      ],
+      "cinematicImagePrompt": "string"
     },
     {
       "type": "tertiary",
-      ... (same structure, Aspirational Avatar - where the hero wants to be)
+      "name": "string",
+      "age": number,
+      "background": "string",
+      "currentState": "string",
+      "desire": "string",
+      "conflict": "string",
+      "transformation": "string",
+      "moralArc": "string",
+      "featureBenefits": [
+        { "feature": "string", "benefit": "string", "wiifm": "string" },
+        { "feature": "string", "benefit": "string", "wiifm": "string" },
+        { "feature": "string", "benefit": "string", "wiifm": "string" }
+      ],
+      "cinematicImagePrompt": "string"
     }
   ],
 
-  "humanProblem": "string - the real human problem being solved (LOCAL context)",
-  "emotionalTension": "string - the emotional weight of the problem",
+  "humanProblem": "string",
+  "emotionalTension": "string",
 
-  "transformation": "string - the journey from before to after",
-  "beforeState": "string - life before the LOCAL solution",
-  "afterState": "string - life after the LOCAL solution",
+  "transformation": "string",
+  "beforeState": "string",
+  "afterState": "string",
 
   "proofPillars": [
     {
-      "claim": "string - the claim being made",
+      "claim": "string",
       "evidenceType": "testimonial|statistic|case-study|certification|demonstration",
-      "evidence": "string - specific LOCAL evidence from the website",
-      "usageGuidance": "string - how to use this proof"
-    },
-    ... (exactly 5 pillars total - prioritize LOCAL testimonials and community proof)
+      "evidence": "string",
+      "usageGuidance": "string"
+    }
   ],
 
-  "offer": "string - the specific offer",
-  "conversionPath": "string - how LOCAL customers convert (phone, visit, consultation)",
-  "callToAction": "string - the primary CTA (emphasize LOCAL action)",
+  "offer": "string",
+  "conversionPath": "string",
+  "callToAction": "string",
 
-  "messagingRules": ["string array of messaging do's and don'ts (LOCAL context)"],
-  "toneGuidelines": ["string array of tone guidelines (personal, trustworthy, local)"],
-  "forbiddenPhrases": ["string array of phrases to avoid"],
+  "messagingRules": ["string"],
+  "toneGuidelines": ["string"],
+  "forbiddenPhrases": ["string"],
 
-  "creativeDirections": "string - overall creative direction (LOCAL service focus)",
-  "visualStyle": "string - visual style guidance (authentic, local, personal)",
-  "narrativeApproach": "string - storytelling approach (LOCAL stories, real people)",
+  "creativeDirections": "string",
+  "visualStyle": "string",
+  "narrativeApproach": "string",
 
-  "testingPlan": "string - how to test the creative",
-  "hypotheses": ["string array of hypotheses to test"],
-  "metrics": ["string array of metrics to track (LOCAL conversions)"]
+  "testingPlan": "string",
+  "hypotheses": ["string"],
+  "metrics": ["string"]
 }
 
-Remember:
-- NO em dash characters anywhere
-- Extract REAL LOCAL evidence from the website for proof pillars
-- Make avatars feel like real LOCAL people with LOCAL concerns
-- Keep sentences short and declarative
-- Emphasize trust, proximity, and personal service throughout
+────────────────────────────────
+FIELD INSTRUCTIONS
+────────────────────────────────
 
-Generate the complete JSON now:`;
+avatars.background: Ground this avatar in a local homeowner or buyer reality. Include their neighborhood mindset, not just their job title.
+
+avatars.currentState: Describe the anxiety or frustration they feel before hiring. Focus on fear of contractor quality, wasted money, or past bad experiences.
+
+avatars.conflict: Identify the specific friction preventing them from acting. Common barriers include uncertainty about who to trust, worry about being overcharged, and fear of poor workmanship.
+
+avatars.transformation: Describe the emotional shift after a successful experience. Relief, restored confidence, and pride in the home are more accurate than excitement.
+
+proofPillars.usageGuidance: Describe how this proof can be shown to a prospect in marketing. Write it as a creative or messaging direction, not an internal strategy note. Example: Feature this in a testimonial ad with a real customer quote and neighborhood callout.
+
+────────────────────────────────
+HARD CONSTRAINTS
+────────────────────────────────
+
+- Respond ONLY with valid JSON
+- NO em dash characters
+- Use periods and commas only
+- Short declarative sentences
+- No invented proof
+- No commentary or explanation
+
+Generate the complete JSON now.`;
 }
 
 export function buildShopifyGenerationPrompt(crawlResult: CrawlResult): string {

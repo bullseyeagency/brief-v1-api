@@ -8,7 +8,7 @@ interface ProofPillar {
 }
 
 interface ProofPillarsElegantProps {
-  pillars: ProofPillar[];
+  pillars: (ProofPillar | string)[];
 }
 
 export function ProofPillarsElegant({ pillars }: ProofPillarsElegantProps) {
@@ -22,6 +22,26 @@ export function ProofPillarsElegant({ pillars }: ProofPillarsElegantProps) {
       'demonstration': 'Verification / Demonstration',
     };
     return typeMap[type] || 'Verification';
+  };
+
+  // Normalize a pillar — legacy briefs may have stored pillars as raw strings
+  const normalizePillar = (pillar: ProofPillar | string): ProofPillar | null => {
+    if (typeof pillar === 'string') {
+      // Attempt to parse structured text like "Claim:\n...\nEvidence:\n...\nUsage Guidance:\n..."
+      const claimMatch = pillar.match(/Claim:\s*\n?([\s\S]*?)(?:\n\nEvidence:|$)/i);
+      const evidenceMatch = pillar.match(/Evidence:\s*\n?([\s\S]*?)(?:\n\nUsage Guidance:|$)/i);
+      const usageMatch = pillar.match(/Usage Guidance:\s*\n?([\s\S]*?)$/i);
+      if (claimMatch || evidenceMatch) {
+        return {
+          claim: (claimMatch?.[1] ?? '').trim(),
+          evidenceType: 'demonstration',
+          evidence: (evidenceMatch?.[1] ?? pillar).trim(),
+          usageGuidance: (usageMatch?.[1] ?? '').trim(),
+        };
+      }
+      return null;
+    }
+    return pillar;
   };
 
   return (
@@ -112,6 +132,27 @@ export function ProofPillarsElegant({ pillars }: ProofPillarsElegantProps) {
           color: #0a0a0a;
           border-left: 2px solid #0a0a0a;
           padding-left: 40px;
+          margin-bottom: 24px;
+        }
+
+        .usage-guidance {
+          font-family: 'Montserrat', sans-serif;
+          font-size: 0.85rem;
+          font-weight: 200;
+          color: #555;
+          letter-spacing: 0.05em;
+          padding-left: 42px;
+          line-height: 1.6;
+        }
+
+        .usage-guidance strong {
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.15em;
+          font-size: 0.75rem;
+          display: block;
+          margin-bottom: 4px;
+          color: #888;
         }
 
         .pillar-row:nth-child(even) {
@@ -140,6 +181,9 @@ export function ProofPillarsElegant({ pillars }: ProofPillarsElegantProps) {
             font-size: 1.8rem;
             padding-left: 20px;
           }
+          .usage-guidance {
+            padding-left: 22px;
+          }
           .big-num {
             font-size: 30vw;
             top: -20px;
@@ -150,20 +194,30 @@ export function ProofPillarsElegant({ pillars }: ProofPillarsElegantProps) {
       <section className="evidence-container">
         <h1 className="hero-title">The Proof.</h1>
 
-        {pillars.map((pillar, index) => (
-          <div key={index} className="pillar-row">
-            <span className="big-num">{(index + 1).toString().padStart(2, '0')}</span>
-            <div className="claim-side">
-              <p>{formatEvidenceType(pillar.evidenceType)}</p>
-              <h3>{pillar.claim}</h3>
-            </div>
-            <div className="evidence-side">
-              <div className="evidence-quote">
-                "{pillar.evidence}"
+        {pillars.map((rawPillar, index) => {
+          const pillar = normalizePillar(rawPillar);
+          if (!pillar) return null;
+          return (
+            <div key={index} className="pillar-row">
+              <span className="big-num">{(index + 1).toString().padStart(2, '0')}</span>
+              <div className="claim-side">
+                <p>{formatEvidenceType(pillar.evidenceType)}</p>
+                <h3>{pillar.claim}</h3>
+              </div>
+              <div className="evidence-side">
+                <div className="evidence-quote">
+                  "{pillar.evidence}"
+                </div>
+                {pillar.usageGuidance && (
+                  <div className="usage-guidance">
+                    <strong>Usage Guidance</strong>
+                    {pillar.usageGuidance}
+                  </div>
+                )}
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </section>
     </>
   );

@@ -7,9 +7,10 @@ interface CustomerAvatarsElegantProps {
   avatars: Avatar[] | [Avatar, Avatar, Avatar];
   businessName?: string;
   existingImages?: [string, string, string] | null;
+  readOnly?: boolean;
 }
 
-export function CustomerAvatarsElegant({ avatars, businessName = 'Business', existingImages }: CustomerAvatarsElegantProps) {
+export function CustomerAvatarsElegant({ avatars, businessName = 'Business', existingImages, readOnly = false }: CustomerAvatarsElegantProps) {
   const [generatedImages, setGeneratedImages] = useState<Record<number, string>>({});
   const [loadingStates, setLoadingStates] = useState<Record<number, boolean>>({});
 
@@ -164,14 +165,16 @@ export function CustomerAvatarsElegant({ avatars, businessName = 'Business', exi
                   </p>
                 </div>
 
-                {/* Generate Button */}
-                <button
-                  onClick={() => handleGenerateImage(avatar, originalIndex)}
-                  disabled={loadingStates[originalIndex]}
-                  className="w-full mt-4 font-sans text-xs bg-slate-900 text-white hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider py-3 font-bold border-2 border-slate-900"
-                >
-                  {generatedImages[originalIndex] ? 'Regenerate Portrait' : 'Generate Portrait'}
-                </button>
+                {/* Generate Button — hidden in read-only mode */}
+                {!readOnly && (
+                  <button
+                    onClick={() => handleGenerateImage(avatar, originalIndex)}
+                    disabled={loadingStates[originalIndex]}
+                    className="w-full mt-4 font-sans text-xs bg-slate-900 text-white hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider py-3 font-bold border-2 border-slate-900"
+                  >
+                    {generatedImages[originalIndex] ? 'Regenerate Portrait' : 'Generate Portrait'}
+                  </button>
+                )}
               </div>
             </div>
             );

@@ -4,7 +4,6 @@
 
 ### New Features
 - **OpenAI 5.x Models**: Added support for GPT-5, GPT-5 Mini, GPT-4.1, and GPT-4.1 Mini
-- **Manus API Integration**: Fixed Manus provider with correct task-based API (create task, poll for completion)
 - **Separate Results Page**: Results now display on `/brand-output` instead of the main page
 - **Progress Bar**: Visual progress indicator with percentage (0-100%) during generation
 - **Task Log Window**: Real-time log showing each step of the generation process
@@ -40,7 +39,7 @@
 
 ### Initial Release
 - URL input with validation
-- Multi-provider AI support (Claude, OpenAI, Manus)
+- Multi-provider AI support (Claude, OpenAI, Gemini)
 - Website crawling (up to 10 pages)
 - Creative Brief generation following Mercenary Creative System
 - Deliverables generation (Website Summary, Facebook Campaigns, TV Commercial)

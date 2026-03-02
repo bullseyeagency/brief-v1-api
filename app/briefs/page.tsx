@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { V1GeneratedBrief } from '@/lib/supabase';
-import { FileText, Clock, ExternalLink, Loader2, Trash2, ImagePlus } from 'lucide-react';
+import { FileText, ExternalLink, Loader2, Trash2, ImagePlus } from 'lucide-react';
 
 export default function BriefsListPage() {
   const router = useRouter();
@@ -48,11 +48,6 @@ export default function BriefsListPage() {
       hour: '2-digit',
       minute: '2-digit',
     }).format(date);
-  };
-
-  const formatDuration = (ms: number | undefined) => {
-    if (!ms) return 'N/A';
-    return `${(ms / 1000).toFixed(1)}s`;
   };
 
   const getProviderColor = (provider: string) => {
@@ -223,9 +218,6 @@ export default function BriefsListPage() {
                       Model
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Duration
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Created
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -276,12 +268,6 @@ export default function BriefsListPage() {
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
                         {brief.model}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        <div className="flex items-center gap-1">
-                          <Clock className="w-4 h-4 text-gray-400" />
-                          {formatDuration(brief.generation_time_ms)}
-                        </div>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
                         {formatDate(brief.created_at)}

@@ -3,7 +3,7 @@
  * Generates comic-style images for avatars and brief sections using Gemini/Imagen
  */
 
-import { Avatar, CreativeBrief } from './types';
+import { Avatar, CreativeBrief, Deliverables, FacebookCampaign, Video8sSection } from './types';
 
 export interface ImageGenerationResult {
   avatars: [string, string, string]; // 3 avatar image URLs
@@ -36,13 +36,22 @@ export interface MagazineImageGenerationResult {
   imageCostUsd: number;
 }
 
-/** Credits consumed per image by model */
+export interface CampaignImageGenerationResult {
+  facebookImages: [string, string, string];
+  storyboardFrames: [string, string, string];
+}
+
+/** Credits consumed per image by model (source: NanoBanana API docs) */
 const CREDITS_PER_IMAGE: Record<string, number> = {
-  'gemini-2.5-flash-image':           2,
-  'gemini-2.5-flash-image-hd':        5,
-  'gemini-3-pro-image-preview':       10,
-  'gemini-3-pro-image-preview-2k':    10,
-  'gemini-3-pro-image-preview-4k':    20,
+  'gemini-2.5-flash-image':                    2,
+  'gemini-2.5-flash-image-hd':                 5,
+  'gemini-3.1-flash-image-preview-512':        4,
+  'gemini-3.1-flash-image-preview':            4,
+  'gemini-3.1-flash-image-preview-2k':         6,
+  'gemini-3.1-flash-image-preview-4k':         8,
+  'gemini-3-pro-image-preview':                8,
+  'gemini-3-pro-image-preview-2k':             8,
+  'gemini-3-pro-image-preview-4k':            16,
 };
 const COST_PER_CREDIT = 0.01; // $10 per 1000 credits
 
@@ -103,69 +112,69 @@ function buildProofPillarsImagePrompt(brief: CreativeBrief): string {
 }
 
 // ============================================================================
-// MAGAZINE PAGE PROMPTS (Image-to-Image Transformation)
+// MAGAZINE PAGE PROMPTS
 // ============================================================================
 
 /**
- * Builds cover page prompt (transforms avatar into cover with business name)
+ * Builds cover page prompt
  */
 function buildCoverPagePrompt(brief: CreativeBrief, businessName: string): string {
-  return `Transform this person into a dynamic comic book cover. Show them in confident hero pose with city skyline behind. Large bold title "${businessName.toUpperCase()}" at top. Subtitle "CREATIVE BRIEF" below. Modern graphic novel style, vibrant but professional colors, magazine quality. 1:1 square format.`.trim();
+  return `Modern comic book cover illustration. A confident professional figure in hero pose with city skyline behind. Large bold title "${businessName.toUpperCase()}" at top. Subtitle "CREATIVE BRIEF" below. Modern graphic novel style, vibrant but professional colors, magazine quality. 1:1 square format.`.trim();
 }
 
 /**
- * Builds Brand Truth page prompt (shows character discovering truth)
+ * Builds Brand Truth page prompt
  */
 function buildBrandTruthPagePrompt(brief: CreativeBrief): string {
-  return `Transform this person into comic panel showing them experiencing a revelation moment. They're discovering "${brief.brandTruth.substring(0, 100)}". Scene: modern office or workspace, lightbulb moment, confident expression. Top banner "BRAND TRUTH". Style: modern graphic novel, clean lines, soft pastels. 1:1 square.`.trim();
+  return `Modern comic panel: a professional figure experiencing a revelation moment, discovering "${brief.brandTruth.substring(0, 100)}". Scene: modern office or workspace, lightbulb moment, confident expression. Top banner "BRAND TRUTH". Style: modern graphic novel, clean lines, soft pastels. 1:1 square.`.trim();
 }
 
 /**
- * Builds Market Context page prompt (shows character in market landscape)
+ * Builds Market Context page prompt
  */
 function buildMarketContextPagePrompt(brief: CreativeBrief): string {
-  return `Transform this person into comic panel showing them analyzing the market. They're viewing charts, graphs, or competitive landscape. Scene represents: "${brief.marketContext.substring(0, 100)}". Professional business setting. Top banner "MARKET LANDSCAPE". Style: modern graphic novel, blues and golds. 1:1 square.`.trim();
+  return `Modern comic panel: a professional figure analyzing the market, viewing charts, graphs, or competitive landscape. Scene represents: "${brief.marketContext.substring(0, 100)}". Professional business setting. Top banner "MARKET LANDSCAPE". Style: modern graphic novel, blues and golds. 1:1 square.`.trim();
 }
 
 /**
- * Builds Problem page prompt (shows character experiencing pain)
+ * Builds Problem page prompt
  */
 function buildProblemPagePrompt(brief: CreativeBrief): string {
-  return `Transform this person into comic panel showing them struggling with: "${brief.humanProblem.substring(0, 100)}". Worried expression, thought bubbles with concerns, stressed posture. Dark muted background. Top banner "THE CHALLENGE". Style: empathetic, professional, clean lines. 1:1 square.`.trim();
+  return `Modern comic panel: a professional figure struggling with: "${brief.humanProblem.substring(0, 100)}". Worried expression, thought bubbles with concerns, stressed posture. Dark muted background. Top banner "THE CHALLENGE". Style: empathetic, professional, clean lines. 1:1 square.`.trim();
 }
 
 /**
- * Builds Transformation page prompt (shows before/after split)
+ * Builds Transformation page prompt
  */
 function buildTransformationPagePrompt(brief: CreativeBrief): string {
-  return `Transform this person into 2-panel split. LEFT PANEL: them struggling (${brief.beforeState.substring(0, 80)}), muted colors, stressed. RIGHT PANEL: same person succeeding (${brief.afterState.substring(0, 80)}), vibrant colors, confident. Large arrow between panels. Top banner "TRANSFORMATION". 1:1 square.`.trim();
+  return `Modern comic 2-panel split illustration. LEFT PANEL: a professional figure struggling (${brief.beforeState.substring(0, 80)}), muted colors, stressed expression. RIGHT PANEL: same figure succeeding (${brief.afterState.substring(0, 80)}), vibrant colors, confident posture. Large arrow between panels. Top banner "TRANSFORMATION". 1:1 square.`.trim();
 }
 
 /**
- * Builds Proof Pillars page prompt (shows character presenting success)
+ * Builds Proof Pillars page prompt
  */
 function buildProofPillarsPagePrompt(brief: CreativeBrief): string {
   const pillarsText = brief.proofPillars
     .map((p, i) => `${i + 1}. ${p.claim.substring(0, 30)}`)
     .join(', ');
 
-  return `Transform this person into comic panel showing them confidently presenting success stories. They're surrounded by 5 shield/badge icons with numbers 1-5. Professional presenter stance. Top banner "PROVEN RESULTS". Credibility wall behind them. Pillars: ${pillarsText}. Style: modern graphic novel. 1:1 square.`.trim();
+  return `Modern comic panel: a professional figure confidently presenting success stories, surrounded by 5 shield/badge icons with numbers 1-5. Professional presenter stance. Top banner "PROVEN RESULTS". Credibility wall behind them. Pillars: ${pillarsText}. Style: modern graphic novel. 1:1 square.`.trim();
 }
 
 /**
- * Builds Offer page prompt (shows all avatars presenting solution)
+ * Builds Offer page prompt
  */
 function buildOfferPagePrompt(brief: CreativeBrief): string {
-  return `Transform this person into comic panel showing them presenting the solution/offer. Confident gesture, pointing to offer details: "${brief.offer.substring(0, 100)}". Call-to-action energy. Top banner "THE OFFER". Modern business presentation style. 1:1 square.`.trim();
+  return `Modern comic panel: a professional figure presenting the solution/offer with confident gesture, pointing to offer details: "${brief.offer.substring(0, 100)}". Call-to-action energy. Top banner "THE OFFER". Modern business presentation style. 1:1 square.`.trim();
 }
 
 /**
- * Builds Messaging page prompt (shows character communicating)
+ * Builds Messaging page prompt
  */
 function buildMessagingPagePrompt(brief: CreativeBrief): string {
   const rulesText = brief.messagingRules.slice(0, 3).join(', ');
 
-  return `Transform this person into comic panel showing them communicating the message. Speech bubbles, confident communication stance. Messaging rules visible: "${rulesText}". Top banner "MESSAGING FRAMEWORK". Professional communicator style. 1:1 square.`.trim();
+  return `Modern comic panel: a professional figure communicating a message with speech bubbles and confident stance. Messaging rules visible: "${rulesText}". Top banner "MESSAGING FRAMEWORK". Professional communicator style. 1:1 square.`.trim();
 }
 
 /**
@@ -180,6 +189,14 @@ function buildCreativeDirectionPagePrompt(brief: CreativeBrief): string {
  */
 function buildBackCoverPagePrompt(businessName: string, cta: string): string {
   return `Comic book back cover design. Bold text "NEXT STEPS" at top. Call-to-action: "${cta.substring(0, 100)}". Business name "${businessName}" at bottom. Modern magazine back cover style, professional finish. 1:1 square.`.trim();
+}
+
+function buildFacebookAdImagePrompt(campaign: FacebookCampaign, businessName: string): string {
+  return `Modern digital advertising visual: ${campaign.visualDirection.substring(0, 200)}. Business: ${businessName}. Campaign objective: ${campaign.objective}. Target audience: ${campaign.targetAvatar} customer. Style: clean, professional, high-contrast, social media ready, lifestyle photography aesthetic. Square format 1:1.`.trim();
+}
+
+function buildStoryboardFramePrompt(section: Video8sSection, _sectionName: string, businessName: string): string {
+  return `${section.visualDirection.substring(0, 300)}. Business: ${businessName}. 16:9 cinematic landscape, photorealistic, film production quality.`.trim();
 }
 
 /**
@@ -236,68 +253,89 @@ async function generateImage(prompt: string, model: string = 'gemini-3-pro-image
 }
 
 /**
- * Generates an image using a reference image (image-to-image transformation)
- * Uses NanoBanana's /v1/images/edit endpoint to maintain character consistency
+ * Phase 1 only: Generate 3 avatar images in parallel
+ * Returns avatar URLs for use as references in Phase 2
  */
-async function generateImageFromReference(
-  referenceImageUrl: string,
-  prompt: string,
-  model: string = 'gemini-3-pro-image-preview',
-  imageSize: string = '1:1'
-): Promise<string> {
-  const apiKey = process.env.NANOBANANA_API_KEY;
-  if (!apiKey) {
-    throw new Error('NANOBANANA_API_KEY not configured');
-  }
-
-  try {
-    const response = await fetch(
-      'https://api.nanobananaapi.dev/v1/images/edit',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          image: referenceImageUrl,  // Reference avatar image
-          prompt: prompt,             // Scene transformation
-          model: model,
-          image_size: imageSize,
-          num: 1
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`NanoBanana API error: ${response.status} - ${errorText}`);
-    }
-
-    const data = await response.json();
-
-    // Check for API error
-    if (data.code !== 0) {
-      throw new Error(`NanoBanana error: ${data.message}`);
-    }
-
-    // Extract image URL from response
-    const imageUrl = data.data?.url;
-    if (!imageUrl) {
-      throw new Error('No image URL in NanoBanana response');
-    }
-
-    return imageUrl;
-  } catch (error) {
-    console.error('Image-to-image generation error:', error);
-    throw error;
-  }
+export async function generateAvatarImages(
+  brief: CreativeBrief,
+  businessName: string,
+  model: string = 'gemini-2.5-flash-image'
+): Promise<[string, string, string]> {
+  console.log(`[Magazine] Generating 3 avatar images (${model})...`);
+  const [avatar1Url, avatar2Url, avatar3Url] = await Promise.all([
+    generateImage(buildAvatarImagePrompt(brief.avatars[0], businessName), model, '1:1'),
+    generateImage(buildAvatarImagePrompt(brief.avatars[1], businessName), model, '1:1'),
+    generateImage(buildAvatarImagePrompt(brief.avatars[2], businessName), model, '1:1'),
+  ]);
+  console.log('[Magazine] ✓ 3 avatars generated');
+  return [avatar1Url, avatar2Url, avatar3Url];
 }
 
 /**
- * Generates all magazine images using avatar references for character consistency
- * Phase 1: Generate 3 avatar images sequentially
- * Phase 2: Generate 10 magazine pages in parallel using avatars as references
+ * Phase 2 only: Generate cover + 8 section pages + back cover in parallel
+ * Accepts avatar URLs from Phase 1 (available for reference if needed later)
+ */
+export async function generateMagazinePages(
+  brief: CreativeBrief,
+  businessName: string,
+  avatarUrls: [string, string, string],
+  model: string = 'gemini-2.5-flash-image'
+): Promise<{
+  cover: string;
+  pages: {
+    brandTruth: string;
+    marketContext: string;
+    problem: string;
+    transformation: string;
+    proofPillars: string;
+    offer: string;
+    messaging: string;
+    creativeDirection: string;
+  };
+  backCover: string;
+}> {
+  // Store avatar URLs on brief for prompt builders to use if needed
+  brief.avatars[0].generatedImageUrl = avatarUrls[0];
+  brief.avatars[1].generatedImageUrl = avatarUrls[1];
+  brief.avatars[2].generatedImageUrl = avatarUrls[2];
+
+  console.log(`[Magazine] Generating 10 magazine pages (${model})...`);
+  const [cover, page1, page2, page3, page4, page5, page6, page7, page8, backCover] =
+    await Promise.all([
+      generateImage(buildCoverPagePrompt(brief, businessName), model, '1:1'),
+      generateImage(buildBrandTruthPagePrompt(brief), model, '1:1'),
+      generateImage(buildMarketContextPagePrompt(brief), model, '1:1'),
+      generateImage(buildProblemPagePrompt(brief), model, '1:1'),
+      generateImage(buildTransformationPagePrompt(brief), model, '1:1'),
+      generateImage(buildProofPillarsPagePrompt(brief), model, '1:1'),
+      generateImage(buildOfferPagePrompt(brief), model, '1:1'),
+      generateImage(buildMessagingPagePrompt(brief), model, '1:1'),
+      generateImage(buildCreativeDirectionPagePrompt(brief), model, '1:1'),
+      generateImage(buildBackCoverPagePrompt(businessName, brief.callToAction), model, '1:1'),
+    ]);
+
+  console.log('[Magazine] ✓ 10 pages generated');
+  return {
+    cover,
+    pages: {
+      brandTruth: page1,
+      marketContext: page2,
+      problem: page3,
+      transformation: page4,
+      proofPillars: page5,
+      offer: page6,
+      messaging: page7,
+      creativeDirection: page8,
+    },
+    backCover,
+  };
+}
+
+/**
+ * Generates all magazine images using avatar references for character consistency.
+ * Probe-first: fires 1 image to validate the API is working, then fires the
+ * remaining 12 in parallel. Any error on the probe aborts immediately without
+ * spending credits on the full batch.
  */
 export async function generateMagazineImages(
   brief: CreativeBrief,
@@ -306,48 +344,34 @@ export async function generateMagazineImages(
 ): Promise<MagazineImageGenerationResult> {
   const startTime = Date.now();
 
-  console.log('[Magazine] Starting image generation...');
+  // PROBE: fire 1 image first to validate API key, model, and quota
+  console.log(`[Magazine] Probe — generating 1 test image with ${model}...`);
+  const probePrompt = buildAvatarImagePrompt(brief.avatars[0], businessName);
+  const avatar1Url = await generateImage(probePrompt, model, '1:1');
+  console.log('[Magazine] ✓ Probe succeeded — firing remaining 12 images in parallel');
 
-  // PHASE 1: Generate 3 avatar reference images (PARALLEL) - 1:1 with flash
-  console.log(`[Magazine] Generating avatar references in parallel (1:1) with ${model}...`);
-
-  const [avatar1Url, avatar2Url, avatar3Url] = await Promise.all([
-    generateImage(buildAvatarImagePrompt(brief.avatars[0], businessName), model, '1:1'),
+  // BATCH: remaining 12 images in parallel
+  const [
+    avatar2Url, avatar3Url,
+    cover, page1, page2, page3, page4, page5, page6, page7, page8, backCover,
+  ] = await Promise.all([
     generateImage(buildAvatarImagePrompt(brief.avatars[1], businessName), model, '1:1'),
     generateImage(buildAvatarImagePrompt(brief.avatars[2], businessName), model, '1:1'),
+    generateImage(buildCoverPagePrompt(brief, businessName), model, '1:1'),
+    generateImage(buildBrandTruthPagePrompt(brief), model, '1:1'),
+    generateImage(buildMarketContextPagePrompt(brief), model, '1:1'),
+    generateImage(buildProblemPagePrompt(brief), model, '1:1'),
+    generateImage(buildTransformationPagePrompt(brief), model, '1:1'),
+    generateImage(buildProofPillarsPagePrompt(brief), model, '1:1'),
+    generateImage(buildOfferPagePrompt(brief), model, '1:1'),
+    generateImage(buildMessagingPagePrompt(brief), model, '1:1'),
+    generateImage(buildCreativeDirectionPagePrompt(brief), model, '1:1'),
+    generateImage(buildBackCoverPagePrompt(businessName, brief.callToAction), model, '1:1'),
   ]);
 
   brief.avatars[0].generatedImageUrl = avatar1Url;
   brief.avatars[1].generatedImageUrl = avatar2Url;
   brief.avatars[2].generatedImageUrl = avatar3Url;
-  console.log('[Magazine] ✓ All 3 avatars generated in parallel');
-
-  // PHASE 2: Generate 10 magazine pages - All 1:1 with flash (no image-to-image for now)
-  console.log(`[Magazine] Generating 10 magazine pages (1:1) with ${model}...`);
-
-  const [cover, page1, page2, page3, page4, page5, page6, page7, page8, backCover] =
-    await Promise.all([
-      // Cover
-      generateImage(buildCoverPagePrompt(brief, businessName), model, '1:1'),
-      // Page 1: Brand Truth
-      generateImage(buildBrandTruthPagePrompt(brief), model, '1:1'),
-      // Page 2: Market Context
-      generateImage(buildMarketContextPagePrompt(brief), model, '1:1'),
-      // Page 3: Problem
-      generateImage(buildProblemPagePrompt(brief), model, '1:1'),
-      // Page 4: Transformation
-      generateImage(buildTransformationPagePrompt(brief), model, '1:1'),
-      // Page 5: Proof Pillars
-      generateImage(buildProofPillarsPagePrompt(brief), model, '1:1'),
-      // Page 6: Offer
-      generateImage(buildOfferPagePrompt(brief), model, '1:1'),
-      // Page 7: Messaging
-      generateImage(buildMessagingPagePrompt(brief), model, '1:1'),
-      // Page 8: Creative Direction
-      generateImage(buildCreativeDirectionPagePrompt(brief), model, '1:1'),
-      // Page 9: Back Cover
-      generateImage(buildBackCoverPagePrompt(businessName, brief.callToAction), model, '1:1'),
-    ]);
 
   const generationTimeMs = Date.now() - startTime;
 
@@ -439,4 +463,43 @@ export async function uploadImageToStorage(
   // TODO: Implement Supabase Storage upload
   // For now, return the base64 data URL as-is
   return base64Data;
+}
+
+/**
+ * Generates 6 campaign images: 3 Facebook ad visuals + 3 TV/YouTube storyboard frames.
+ * Facebook ads use 1:1 square; storyboard frames use 16:9 landscape.
+ * Only runs when deliverables contain a valid facebookCampaigns array and video8s.
+ */
+export async function generateCampaignImages(
+  deliverables: Deliverables,
+  businessName: string,
+  model: string = 'gemini-2.5-flash-image'
+): Promise<CampaignImageGenerationResult> {
+  const campaigns = Array.isArray(deliverables.facebookCampaigns)
+    ? deliverables.facebookCampaigns
+    : [];
+
+  const video8s = deliverables.video8s;
+
+  if (campaigns.length < 3 || !video8s) {
+    throw new Error('generateCampaignImages requires at least 3 facebookCampaigns and video8s');
+  }
+
+  console.log(`[Campaign] Generating 6 campaign images (3 FB ads + 3 storyboard) with ${model}...`);
+
+  const [fb1, fb2, fb3, sb1, sb2, sb3] = await Promise.all([
+    generateImage(buildFacebookAdImagePrompt(campaigns[0], businessName), model, '1:1'),
+    generateImage(buildFacebookAdImagePrompt(campaigns[1], businessName), model, '1:1'),
+    generateImage(buildFacebookAdImagePrompt(campaigns[2], businessName), model, '1:1'),
+    generateImage(buildStoryboardFramePrompt(video8s.recognition, 'Recognition', businessName), model, '16:9'),
+    generateImage(buildStoryboardFramePrompt(video8s.proofInContext, 'Proof in Context', businessName), model, '16:9'),
+    generateImage(buildStoryboardFramePrompt(video8s.beliefLock, 'Belief Lock', businessName), model, '16:9'),
+  ]);
+
+  console.log('[Campaign] ✓ 6 campaign images generated');
+
+  return {
+    facebookImages: [fb1, fb2, fb3],
+    storyboardFrames: [sb1, sb2, sb3],
+  };
 }

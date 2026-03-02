@@ -158,6 +158,32 @@ export async function saveAllBriefImages(
 }
 
 /**
+ * Saves Facebook ad images and storyboard frames to permanent storage
+ */
+export async function saveCampaignImages(
+  briefId: string,
+  tempImages: { facebookImages: [string, string, string]; storyboardFrames: [string, string, string] }
+): Promise<{ facebookImages: [string, string, string]; storyboardFrames: [string, string, string] }> {
+  console.log(`[Storage] Saving 6 campaign images for brief ${briefId}...`);
+
+  const [fb1, fb2, fb3, sb1, sb2, sb3] = await Promise.all([
+    saveImagePermanently(tempImages.facebookImages[0], briefId, 'fb_ad_primary'),
+    saveImagePermanently(tempImages.facebookImages[1], briefId, 'fb_ad_secondary'),
+    saveImagePermanently(tempImages.facebookImages[2], briefId, 'fb_ad_tertiary'),
+    saveImagePermanently(tempImages.storyboardFrames[0], briefId, 'storyboard_recognition'),
+    saveImagePermanently(tempImages.storyboardFrames[1], briefId, 'storyboard_proof'),
+    saveImagePermanently(tempImages.storyboardFrames[2], briefId, 'storyboard_belief'),
+  ]);
+
+  console.log('[Storage] ✅ 6 campaign images saved permanently');
+
+  return {
+    facebookImages: [fb1, fb2, fb3],
+    storyboardFrames: [sb1, sb2, sb3],
+  };
+}
+
+/**
  * Deletes all images for a brief from storage
  */
 export async function deleteBriefImages(

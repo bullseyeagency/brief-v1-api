@@ -29,7 +29,7 @@ Generates creative briefs, persona images (Gemini), and comic strips (infinite-h
 - Next.js 14 (App Router)
 - TypeScript
 - Tailwind CSS
-- AI: Claude, OpenAI (GPT-5), Manus
+- AI: Claude, OpenAI (GPT-5), Gemini
 
 ## File Structure Conventions
 
