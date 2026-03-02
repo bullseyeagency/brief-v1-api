@@ -8,9 +8,10 @@ import { generateWithProvider } from './providers';
 import { buildSystemPrompt, buildGenerationPrompt, buildLocalGenerationPrompt, buildShopifyGenerationPrompt, buildDeliverablesPrompt } from './prompts';
 import { validateCreativeBrief, sanitizeEmDashes } from './validation';
 import { cleanupCrawlResult, convertToLegacyFormat } from './crawl-cleanup';
-import { CrawlResult, AIProvider, CreativeBrief, Deliverables } from './types';
-import { generateAvatarImages, generateMagazinePages, MagazineImageGenerationResult } from './image-generator';
-import { saveMagazineImages } from './image-storage';
+import { CrawlResult, AIProvider, CreativeBrief, Deliverables, FacebookCampaign } from './types';
+import { generateAvatarImages, generateMagazinePages, generateCampaignImages, MagazineImageGenerationResult } from './image-generator';
+import { saveMagazineImages, saveCampaignImages } from './image-storage';
+import { refineFacebookAdCopy } from './ad-copy-refine';
 
 interface ProcessOptions {
   briefId: string;
@@ -325,6 +326,24 @@ export async function processBriefGeneration(options: ProcessOptions) {
       };
     }
 
+    // Stage 4b: Refine Facebook ad copy
+    if (Array.isArray(deliverables.facebookCampaigns) && deliverables.facebookCampaigns.length > 0) {
+      try {
+        await updateBriefStatus(briefId, {
+          progress: 86,
+          current_task: 'Refining ad copy',
+          log: 'Refining Facebook ad copy...',
+        });
+        deliverables.facebookCampaigns = await refineFacebookAdCopy(
+          deliverables.facebookCampaigns as FacebookCampaign[],
+          businessName
+        ) as FacebookCampaign[];
+        await updateBriefStatus(briefId, { log: 'Ad copy refined' });
+      } catch (refineError) {
+        console.error('[Background] Ad copy refinement failed (non-fatal):', refineError);
+      }
+    }
+
     // Stage 5: Save images to Supabase Storage
     let savedImages: object | undefined;
     let imageCredits: number | undefined;
@@ -350,6 +369,30 @@ export async function processBriefGeneration(options: ProcessOptions) {
         console.log(`[Background] ✅ Images saved — ${imageCredits} credits ($${imageCostUsd})`);
       } catch (imgError) {
         console.error('[Background] Image save failed (non-fatal):', imgError);
+      }
+    }
+
+    // Stage 5b: Campaign images (FB ads + storyboard)
+    if (
+      nanoBananaKey &&
+      Array.isArray(deliverables.facebookCampaigns) &&
+      (deliverables.facebookCampaigns as FacebookCampaign[]).length >= 3 &&
+      deliverables.video8s
+    ) {
+      try {
+        await updateBriefStatus(briefId, {
+          progress: 94,
+          current_task: 'Generating campaign images',
+          log: 'Generating Facebook ad images and storyboard frames...',
+        });
+        const campaignImages = await generateCampaignImages(deliverables, businessName);
+        const savedCampaignImages = await saveCampaignImages(briefId, campaignImages);
+        // Merge into savedImages
+        savedImages = { ...(savedImages as object), ...savedCampaignImages };
+        await updateBriefStatus(briefId, { log: 'Campaign images generated and saved' });
+        console.log('[Background] ✅ Campaign images saved');
+      } catch (campaignError) {
+        console.error('[Background] Campaign image generation failed (non-fatal):', campaignError);
       }
     }
 
