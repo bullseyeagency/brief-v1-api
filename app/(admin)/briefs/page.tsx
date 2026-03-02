@@ -13,6 +13,7 @@ export default function BriefsListPage() {
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState<{ briefId: string; type: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<'all' | 'unsent' | 'sent'>('all');
 
   useEffect(() => {
     async function fetchBriefs() {
@@ -127,6 +128,13 @@ export default function BriefsListPage() {
     }
   };
 
+  const filteredBriefs = briefs.filter(b => {
+    const sentAt = (b as any).sent_at;
+    if (activeTab === 'sent') return !!sentAt;
+    if (activeTab === 'unsent') return !sentAt;
+    return true;
+  });
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -143,13 +151,34 @@ export default function BriefsListPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
             Creative Briefs
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-600 mb-6">
             All generated creative briefs from brief-v1-api
           </p>
+          {/* Tabs */}
+          <div className="flex gap-1 border-b border-gray-200">
+            {(['all', 'unsent', 'sent'] as const).map((tab) => {
+              const count = tab === 'all' ? briefs.length
+                : tab === 'sent' ? briefs.filter(b => !!(b as any).sent_at).length
+                : briefs.filter(b => !(b as any).sent_at).length;
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-4 py-2 text-sm font-medium capitalize transition-colors border-b-2 -mb-px ${
+                    activeTab === tab
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {tab} <span className="ml-1 text-xs text-gray-400">({count})</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Error State */}
@@ -160,7 +189,7 @@ export default function BriefsListPage() {
         )}
 
         {/* Empty State */}
-        {!loading && briefs.length === 0 && (
+        {!loading && filteredBriefs.length === 0 && (
           <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
             <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">
@@ -179,7 +208,7 @@ export default function BriefsListPage() {
         )}
 
         {/* Briefs Table */}
-        {briefs.length > 0 && (
+        {filteredBriefs.length > 0 && (
           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -206,7 +235,7 @@ export default function BriefsListPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {briefs.map((brief) => (
+                  {filteredBriefs.map((brief) => (
                     <tr
                       key={brief.id}
                       className="hover:bg-gray-50 transition-colors cursor-pointer"
@@ -366,9 +395,9 @@ export default function BriefsListPage() {
         )}
 
         {/* Stats Footer */}
-        {briefs.length > 0 && (
+        {filteredBriefs.length > 0 && (
           <div className="mt-6 text-center text-sm text-gray-500">
-            Showing {briefs.length} {briefs.length === 1 ? 'brief' : 'briefs'}
+            Showing {filteredBriefs.length} of {briefs.length} {briefs.length === 1 ? 'brief' : 'briefs'}
           </div>
         )}
       </div>
