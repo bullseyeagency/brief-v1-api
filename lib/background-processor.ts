@@ -301,7 +301,9 @@ export async function processBriefGeneration(options: ProcessOptions) {
         avatarUrls = await generateAvatarImages(brief, businessName, imageModel);
         console.log('[Background] Avatar images generated successfully');
       } catch (avatarError) {
+        const avatarErrMsg = avatarError instanceof Error ? avatarError.message : String(avatarError);
         console.error('[Background] Avatar generation failed (brief will complete without images):', avatarError);
+        await updateBriefStatus(briefId, { log: `⚠️ Avatar image generation failed: ${avatarErrMsg}` });
       }
     } else if (!nanoBananaKey) {
       console.warn('[Background] NANOBANANA_API_KEY not configured — skipping avatar generation');

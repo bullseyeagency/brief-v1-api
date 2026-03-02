@@ -272,12 +272,9 @@ async function generateAvatarWithFallback(
   try {
     return await generateImage(buildAvatarImagePrompt(avatar, businessName), model, '1:1');
   } catch (err) {
-    const msg = err instanceof Error ? err.message : '';
-    if (msg.includes('could not generate') || msg.includes('different prompt') || msg.includes('safety')) {
-      console.warn(`[Magazine] Avatar prompt rejected by Gemini for ${avatar.name}, retrying with fallback prompt...`);
-      return await generateImage(buildAvatarFallbackPrompt(avatar, businessName), model, '1:1');
-    }
-    throw err;
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`[Magazine] Avatar generation failed for ${avatar.name} (${msg}), retrying with fallback prompt...`);
+    return await generateImage(buildAvatarFallbackPrompt(avatar, businessName), model, '1:1');
   }
 }
 
