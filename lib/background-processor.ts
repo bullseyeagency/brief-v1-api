@@ -407,7 +407,7 @@ export async function processBriefGeneration(options: ProcessOptions) {
         .eq('id', briefId)
         .single();
       const publicUrl = completedBrief?.public_slug
-        ? `${siteUrl}/brief/${completedBrief.public_slug}`
+        ? `${siteUrl}/creative-strategy-brief/${completedBrief.public_slug}`
         : undefined;
       await fireCallback(briefRecord.callback_url, {
         companyId: briefRecord.sophia_contact_id || null,
