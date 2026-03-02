@@ -86,14 +86,14 @@ export async function POST(request: NextRequest) {
     let apiKey: string;
     let model: string;
 
-    if (claudeKey) {
-      provider = 'claude';
-      apiKey = claudeKey;
-      model = 'claude-sonnet-4-6';
-    } else if (openaiKey) {
+    if (openaiKey) {
       provider = 'openai';
       apiKey = openaiKey;
       model = 'gpt-5.2-2025-12-11';
+    } else if (claudeKey) {
+      provider = 'claude';
+      apiKey = claudeKey;
+      model = 'claude-sonnet-4-6';
     } else {
       provider = 'gemini';
       apiKey = geminiKey!;
