@@ -275,17 +275,17 @@ export default function BriefsListPage() {
                       <td className="px-6 py-4 text-right text-sm">
                         <div className="flex items-center justify-end gap-4">
                           {/* Final */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(`/creative-strategy-brief/${brief.public_slug}`);
-                            }}
+                          <a
+                            href={`/creative-strategy-brief/${brief.public_slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
                             className="flex flex-col items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
                             title="View final brief"
                           >
                             <Sparkles className="w-4 h-4" />
                             <span className="text-[10px] font-medium leading-none">Final</span>
-                          </button>
+                          </a>
                           {/* Original */}
                           <button
                             onClick={(e) => {

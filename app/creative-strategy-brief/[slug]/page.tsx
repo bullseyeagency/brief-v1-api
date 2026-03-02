@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { notFound } from 'next/navigation';
-import { Download, Loader2, Phone, PhoneCall } from 'lucide-react';
+import { Download, Loader2, Phone, PhoneCall, RefreshCw } from 'lucide-react';
 import { CreativeBrief, Deliverables, BriefImages } from '@/lib/types';
 import { TextGradientScroll } from '@/components/21st/TextGradientScroll';
 import { Typewriter } from '@/components/21st/Typewriter';
@@ -79,6 +79,8 @@ export default function CreativeStrategyBriefPage({ params }: PageProps) {
   const [isStuck, setIsStuck] = useState(false);
   const [editorialSummary, setEditorialSummary] = useState<string | null>(null);
   const [editorialLoading, setEditorialLoading] = useState(false);
+  const [isRegeneratingImages, setIsRegeneratingImages] = useState(false);
+  const [regenerateError, setRegenerateError] = useState<string | null>(null);
 
   // Fetch initial brief data
   useEffect(() => {
@@ -156,6 +158,26 @@ export default function CreativeStrategyBriefPage({ params }: PageProps) {
 
     return () => clearInterval(pollInterval);
   }, [slug, briefData?.status, lastProgressAt]);
+
+  const handleRegenerateImages = async () => {
+    if (!briefData) return;
+    setIsRegeneratingImages(true);
+    setRegenerateError(null);
+    try {
+      const response = await fetch('/api/regenerate-images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ briefId: briefData.id }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to regenerate images');
+      setBriefData((prev) => prev ? { ...prev, images: data.images } : prev);
+    } catch (err) {
+      setRegenerateError(err instanceof Error ? err.message : 'Failed to regenerate images');
+    } finally {
+      setIsRegeneratingImages(false);
+    }
+  };
 
   // Fetch editorial rewrite of websiteSummary once brief is completed
   useEffect(() => {
@@ -416,6 +438,32 @@ export default function CreativeStrategyBriefPage({ params }: PageProps) {
 
   return (
     <main className="min-h-screen bg-[#0a0a0a]">
+      {/* ── Floating Regenerate Images Button ─────────────────── */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
+        {regenerateError && (
+          <div className="bg-red-950/90 border border-red-800 text-red-300 text-xs px-3 py-2 rounded-lg max-w-xs">
+            {regenerateError}
+          </div>
+        )}
+        <button
+          onClick={handleRegenerateImages}
+          disabled={isRegeneratingImages}
+          title={briefData.images ? 'Regenerate images' : 'Images missing — click to generate'}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-medium transition-all shadow-lg ${
+            briefData.images
+              ? 'bg-white/10 border border-white/20 text-white/60 hover:bg-white/15 hover:text-white/80'
+              : 'bg-orange-600 border border-orange-500 text-white hover:bg-orange-500'
+          } disabled:opacity-50 disabled:cursor-not-allowed`}
+        >
+          {isRegeneratingImages ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <RefreshCw className="w-3.5 h-3.5" />
+          )}
+          {isRegeneratingImages ? 'Generating...' : briefData.images ? 'Regen Images' : 'Generate Images'}
+        </button>
+      </div>
+
       {/* ── Section 1: Hero ───────────────────────────────────── */}
       <section className="relative min-h-screen flex flex-col items-center justify-center bg-[#0a0a0a] overflow-hidden">
         {/* Subtle radial glow */}
