@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
 
     console.log('[API] 🔍 Verification - metadata in database:', verifyBrief?.metadata);
 
-    const publicUrl = `${siteUrl}/brief/${newBrief.public_slug}`;
+    const publicUrl = `${siteUrl}/creative-strategy-brief/${newBrief.public_slug}`;
     console.log(`[API] ✅ Brief created: ${publicUrl}`);
 
     // Step 3: Process brief — inline locally, background function in production
@@ -274,7 +274,7 @@ export async function GET() {
       },
       response: {
         success: true,
-        publicUrl: 'https://briefs.dalyandco.com/brief/abc123ef',
+        publicUrl: 'https://briefs.dalyandco.com/creative-strategy-brief/abc123ef',
         briefId: '550e8400-e29b-41d4-a716-446655440000',
         status: 'processing',
       },

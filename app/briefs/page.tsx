@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { V1GeneratedBrief } from '@/lib/supabase';
-import { FileText, ExternalLink, Loader2, Trash2, ImagePlus } from 'lucide-react';
+import { FileText, ExternalLink, Loader2, Trash2, ImagePlus, Sparkles, Archive } from 'lucide-react';
 
 export default function BriefsListPage() {
   const router = useRouter();
@@ -230,7 +230,7 @@ export default function BriefsListPage() {
                     <tr
                       key={brief.id}
                       className="hover:bg-gray-50 transition-colors cursor-pointer"
-                      onClick={() => router.push(`/brief/${brief.public_slug}`)}
+                      onClick={() => router.push(`/creative-strategy-brief/${brief.public_slug}`)}
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
@@ -273,49 +273,48 @@ export default function BriefsListPage() {
                         {formatDate(brief.created_at)}
                       </td>
                       <td className="px-6 py-4 text-right text-sm">
-                        <div className="flex items-center justify-end gap-3">
+                        <div className="flex items-center justify-end gap-4">
+                          {/* Final */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/creative-strategy-brief/${brief.public_slug}`);
+                            }}
+                            className="flex flex-col items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
+                            title="View final brief"
+                          >
+                            <Sparkles className="w-4 h-4" />
+                            <span className="text-[10px] font-medium leading-none">Final</span>
+                          </button>
+                          {/* Original */}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               router.push(`/brief/${brief.public_slug}`);
                             }}
-                            className="text-blue-600 hover:text-blue-800 font-medium"
+                            className="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-700 transition-colors"
+                            title="View original brief"
                           >
-                            New
+                            <Archive className="w-4 h-4" />
+                            <span className="text-[10px] font-medium leading-none">Original</span>
                           </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(`/brief-old/${brief.public_slug}`);
-                            }}
-                            className="text-gray-600 hover:text-gray-800 font-medium"
-                          >
-                            Old
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(`/brief-booklet/${brief.public_slug}`);
-                            }}
-                            className="text-purple-600 hover:text-purple-800 font-medium"
-                          >
-                            Booklet
-                          </button>
+                          {/* Images */}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               router.push(`/brief/${brief.public_slug}/images`);
                             }}
-                            className="flex items-center gap-1 text-emerald-600 hover:text-emerald-800 font-medium"
-                            title="Generate magazine images"
+                            className="flex flex-col items-center gap-1 text-emerald-600 hover:text-emerald-800 transition-colors"
+                            title="Manage images"
                           >
                             <ImagePlus className="w-4 h-4" />
-                            Images
+                            <span className="text-[10px] font-medium leading-none">Images</span>
                           </button>
+                          {/* Delete */}
                           <button
                             onClick={(e) => handleDelete(brief.public_slug, e)}
                             disabled={deletingId === brief.public_slug}
-                            className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex flex-col items-center gap-1 text-red-500 hover:text-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                             title="Delete brief"
                           >
                             {deletingId === brief.public_slug ? (
@@ -323,6 +322,7 @@ export default function BriefsListPage() {
                             ) : (
                               <Trash2 className="w-4 h-4" />
                             )}
+                            <span className="text-[10px] font-medium leading-none">Delete</span>
                           </button>
                         </div>
                       </td>
