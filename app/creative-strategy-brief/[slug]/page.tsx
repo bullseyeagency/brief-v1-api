@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { notFound } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Phone, Share2, RefreshCw } from 'lucide-react';
 import { CreativeBrief, Deliverables, BriefImages } from '@/lib/types';
 import { TextGradientScroll } from '@/components/21st/TextGradientScroll';
 import { Typewriter } from '@/components/21st/Typewriter';
@@ -78,6 +78,7 @@ export default function CreativeStrategyBriefPage({ params }: PageProps) {
   const [isStuck, setIsStuck] = useState(false);
   const [editorialSummary, setEditorialSummary] = useState<string | null>(null);
   const [editorialLoading, setEditorialLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Fetch initial brief data
   useEffect(() => {
@@ -413,6 +414,13 @@ export default function CreativeStrategyBriefPage({ params }: PageProps) {
       ]
     : [];
 
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
   return (
     <main className="min-h-screen bg-[#0a0a0a]">
       {/* ── Section 1: Hero ───────────────────────────────────── */}
@@ -530,6 +538,73 @@ export default function CreativeStrategyBriefPage({ params }: PageProps) {
       {storyboardFrames.length > 0 && (
         <Storyboard frames={storyboardFrames} />
       )}
+
+      {/* ── Section 7: CTA ────────────────────────────────────── */}
+      <section className="w-full bg-[#0a0a0a] py-32 px-6">
+        <div className="max-w-3xl mx-auto text-center">
+          {/* Eyebrow */}
+          <p className="text-xs font-medium uppercase tracking-[0.3em] text-white/20 mb-10">
+            Bullseye Agency
+          </p>
+
+          {/* Headline */}
+          <h2 className="text-3xl md:text-5xl lg:text-6xl font-light text-white leading-tight">
+            This is what we see from the outside.
+            <br />
+            The real work starts when we get inside.
+          </h2>
+
+          {/* Subline */}
+          <p className="text-gray-500 text-lg mt-6 max-w-xl mx-auto">
+            One crawl. No conversation. This is what we built.
+            <br />
+            Imagine what we&apos;d create if we actually worked together.
+          </p>
+
+          {/* Three action cards */}
+          <div className="flex flex-col md:flex-row gap-4 justify-center items-stretch max-w-2xl mx-auto mt-16">
+            {/* Option 1: Book a strategy call */}
+            <a
+              href="mailto:hello@bullseyeagency.com?subject=Strategy Call Request&body=I reviewed my creative brief and would like to book a call."
+              className="flex-1 min-w-[180px] border border-white/20 rounded-2xl p-6 flex flex-col items-center text-center gap-3 hover:border-white/30 hover:bg-white/5 transition-all cursor-pointer no-underline"
+            >
+              <Phone className="w-5 h-5 text-white" />
+              <span className="text-white font-medium text-sm">Book a Strategy Call</span>
+              <span className="text-gray-500 text-xs">30 min — no pitch, just strategy</span>
+            </a>
+
+            {/* Option 2: Share with team */}
+            <button
+              onClick={handleCopyLink}
+              className="flex-1 min-w-[180px] border border-white/10 rounded-2xl p-6 flex flex-col items-center text-center gap-3 hover:border-white/30 hover:bg-white/5 transition-all cursor-pointer bg-transparent"
+            >
+              <Share2 className="w-5 h-5 text-white" />
+              <span className="text-white font-medium text-sm">
+                {copied ? 'Copied!' : 'Share with My Team'}
+              </span>
+              <span className="text-gray-500 text-xs">Copy the link to this brief</span>
+            </button>
+
+            {/* Option 3: Request revisions */}
+            <a
+              href="mailto:hello@bullseyeagency.com?subject=Brief Revision Request&body=I reviewed my creative brief and have some feedback..."
+              className="flex-1 min-w-[180px] border border-white/10 rounded-2xl p-6 flex flex-col items-center text-center gap-3 hover:border-white/30 hover:bg-white/5 transition-all cursor-pointer no-underline"
+            >
+              <RefreshCw className="w-5 h-5 text-white" />
+              <span className="text-white font-medium text-sm">Request Revisions</span>
+              <span className="text-gray-500 text-xs">Tell us what to adjust</span>
+            </a>
+          </div>
+
+          {/* Bottom line */}
+          <div className="mt-16">
+            <div className="w-px h-8 bg-white/10 mx-auto" />
+            <p className="text-xs text-gray-600 text-center mt-4">
+              &copy; Bullseye Agency &middot; briefs.dalyandco.com
+            </p>
+          </div>
+        </div>
+      </section>
     </main>
   );
 }
