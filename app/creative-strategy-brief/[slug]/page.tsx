@@ -11,6 +11,7 @@ import ElegantCarousel from '@/components/ui/elegant-carousel';
 import type { SlideData } from '@/components/ui/elegant-carousel';
 import { FeatureSteps, Feature } from '@/components/ui/feature-section';
 import { FbAdPreview } from '@/components/ui/fb-ad-preview';
+import { GoogleAdPreview } from '@/components/ui/google-ad-preview';
 import { Storyboard } from '@/components/ui/storyboard';
 
 interface PageProps {
@@ -512,23 +513,40 @@ export default function CreativeStrategyBriefPage({ params }: PageProps) {
           <div className="max-w-7xl mx-auto px-6 md:px-12">
             <div className="text-center mb-16">
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gray-400 mb-3">Deliverable</p>
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-black">Facebook Campaigns</h2>
-              <p className="text-gray-500 mt-3 text-lg">One campaign per audience segment</p>
+              <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-black">Ad Campaigns</h2>
+              <p className="text-gray-500 mt-3 text-lg">Multi-platform campaigns</p>
             </div>
             <div className="flex flex-col md:flex-row gap-8 justify-center items-start">
-              {facebookCampaigns.slice(0, 3).map((campaign, i) => (
-                <FbAdPreview
-                  key={i}
-                  pageName={domain}
-                  primaryText={campaign.primaryText}
-                  headline={campaign.headline}
-                  description={campaign.description}
-                  ctaLabel={brief.callToAction?.split(' ').slice(0, 3).join(' ') || 'Learn More'}
-                  imageUrl={briefData.images?.facebookImages?.[i] || briefData.images?.avatars?.[i] || `https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=600&h=600&fit=crop`}
-                  targetLabel={campaign.targetAvatar}
-                  accentColor={FB_AD_ACCENTS[i]}
-                />
-              ))}
+              {facebookCampaigns.slice(0, 3).map((campaign, i) => {
+                if (i === 2) {
+                  // Third slot: Google Search Ad
+                  return (
+                    <GoogleAdPreview
+                      key={i}
+                      headline={campaign.headline}
+                      headline2={brief.callToAction?.split(' ').slice(0, 4).join(' ')}
+                      headline3={brief.brandPromise?.split(' ').slice(0, 5).join(' ')}
+                      description={campaign.description + (campaign.primaryText ? ' ' + campaign.primaryText.slice(0, 60) : '')}
+                      displayUrl={domain}
+                      path1="solutions"
+                      targetLabel={campaign.targetAvatar}
+                    />
+                  );
+                }
+                return (
+                  <FbAdPreview
+                    key={i}
+                    pageName={domain}
+                    primaryText={campaign.primaryText}
+                    headline={campaign.headline}
+                    description={campaign.description}
+                    ctaLabel={brief.callToAction?.split(' ').slice(0, 3).join(' ') || 'Learn More'}
+                    imageUrl={briefData.images?.facebookImages?.[i] || briefData.images?.avatars?.[i] || `https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=600&h=600&fit=crop`}
+                    targetLabel={campaign.targetAvatar}
+                    accentColor={FB_AD_ACCENTS[i]}
+                  />
+                );
+              })}
             </div>
           </div>
         </section>
