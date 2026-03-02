@@ -253,6 +253,35 @@ async function generateImage(prompt: string, model: string = 'gemini-3-pro-image
 }
 
 /**
+ * Builds a minimal fallback avatar prompt for when the full prompt triggers content filters
+ */
+function buildAvatarFallbackPrompt(avatar: Avatar, briefContext: string): string {
+  const typeLabel = avatar.type === 'primary' ? 'hero' : avatar.type === 'secondary' ? 'supporting' : 'aspirational';
+  return `Modern graphic novel portrait of a professional person, age ${avatar.age || 30}. ${typeLabel} character in a business setting. Confident expression. Style: clean lines, soft pastels, beige background, contemporary comic illustration. Business context: ${briefContext}. Square format.`.trim();
+}
+
+/**
+ * Generates a single avatar image with automatic fallback to a simpler prompt
+ * if the full prompt triggers Gemini's content filter.
+ */
+async function generateAvatarWithFallback(
+  avatar: Avatar,
+  businessName: string,
+  model: string
+): Promise<string> {
+  try {
+    return await generateImage(buildAvatarImagePrompt(avatar, businessName), model, '1:1');
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '';
+    if (msg.includes('could not generate') || msg.includes('different prompt') || msg.includes('safety')) {
+      console.warn(`[Magazine] Avatar prompt rejected by Gemini for ${avatar.name}, retrying with fallback prompt...`);
+      return await generateImage(buildAvatarFallbackPrompt(avatar, businessName), model, '1:1');
+    }
+    throw err;
+  }
+}
+
+/**
  * Phase 1 only: Generate 3 avatar images in parallel
  * Returns avatar URLs for use as references in Phase 2
  */
@@ -263,9 +292,9 @@ export async function generateAvatarImages(
 ): Promise<[string, string, string]> {
   console.log(`[Magazine] Generating 3 avatar images (${model})...`);
   const [avatar1Url, avatar2Url, avatar3Url] = await Promise.all([
-    generateImage(buildAvatarImagePrompt(brief.avatars[0], businessName), model, '1:1'),
-    generateImage(buildAvatarImagePrompt(brief.avatars[1], businessName), model, '1:1'),
-    generateImage(buildAvatarImagePrompt(brief.avatars[2], businessName), model, '1:1'),
+    generateAvatarWithFallback(brief.avatars[0], businessName, model),
+    generateAvatarWithFallback(brief.avatars[1], businessName, model),
+    generateAvatarWithFallback(brief.avatars[2], businessName, model),
   ]);
   console.log('[Magazine] ✓ 3 avatars generated');
   return [avatar1Url, avatar2Url, avatar3Url];
@@ -346,8 +375,7 @@ export async function generateMagazineImages(
 
   // PROBE: fire 1 image first to validate API key, model, and quota
   console.log(`[Magazine] Probe — generating 1 test image with ${model}...`);
-  const probePrompt = buildAvatarImagePrompt(brief.avatars[0], businessName);
-  const avatar1Url = await generateImage(probePrompt, model, '1:1');
+  const avatar1Url = await generateAvatarWithFallback(brief.avatars[0], businessName, model);
   console.log('[Magazine] ✓ Probe succeeded — firing remaining 12 images in parallel');
 
   // BATCH: remaining 12 images in parallel
@@ -355,8 +383,8 @@ export async function generateMagazineImages(
     avatar2Url, avatar3Url,
     cover, page1, page2, page3, page4, page5, page6, page7, page8, backCover,
   ] = await Promise.all([
-    generateImage(buildAvatarImagePrompt(brief.avatars[1], businessName), model, '1:1'),
-    generateImage(buildAvatarImagePrompt(brief.avatars[2], businessName), model, '1:1'),
+    generateAvatarWithFallback(brief.avatars[1], businessName, model),
+    generateAvatarWithFallback(brief.avatars[2], businessName, model),
     generateImage(buildCoverPagePrompt(brief, businessName), model, '1:1'),
     generateImage(buildBrandTruthPagePrompt(brief), model, '1:1'),
     generateImage(buildMarketContextPagePrompt(brief), model, '1:1'),
