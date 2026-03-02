@@ -294,22 +294,24 @@ export async function processBriefGeneration(options: ProcessOptions) {
       model,
     });
 
+    // TODO: Avatar generation temporarily disabled — rebuilding module
     // Run avatar generation separately — failure is non-fatal
-    let avatarUrls: [string, string, string] | null = null;
-    if (nanoBananaKey && imageSlots.avatars) {
-      try {
-        avatarUrls = await generateAvatarImages(brief, businessName, imageModel);
-        console.log('[Background] Avatar images generated successfully');
-      } catch (avatarError) {
-        const avatarErrMsg = avatarError instanceof Error ? avatarError.message : String(avatarError);
-        console.error('[Background] Avatar generation failed (brief will complete without images):', avatarError);
-        await updateBriefStatus(briefId, { log: `⚠️ Avatar image generation failed: ${avatarErrMsg}` });
-      }
-    } else if (!nanoBananaKey) {
-      console.warn('[Background] NANOBANANA_API_KEY not configured — skipping avatar generation');
-    } else {
-      console.log('[Background] Avatar slot disabled — skipping avatar generation');
-    }
+    // let avatarUrls: [string, string, string] | null = null;
+    // if (nanoBananaKey && imageSlots.avatars) {
+    //   try {
+    //     avatarUrls = await generateAvatarImages(brief, businessName, imageModel);
+    //     console.log('[Background] Avatar images generated successfully');
+    //   } catch (avatarError) {
+    //     const avatarErrMsg = avatarError instanceof Error ? avatarError.message : String(avatarError);
+    //     console.error('[Background] Avatar generation failed (brief will complete without images):', avatarError);
+    //     await updateBriefStatus(briefId, { log: `⚠️ Avatar image generation failed: ${avatarErrMsg}` });
+    //   }
+    // } else if (!nanoBananaKey) {
+    //   console.warn('[Background] NANOBANANA_API_KEY not configured — skipping avatar generation');
+    // } else {
+    //   console.log('[Background] Avatar slot disabled — skipping avatar generation');
+    // }
+    const avatarUrls: [string, string, string] | null = null;
 
     await updateBriefStatus(briefId, {
       progress: 82,
