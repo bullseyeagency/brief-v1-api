@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { notFound } from 'next/navigation';
-import { Loader2, Phone, Share2, RefreshCw } from 'lucide-react';
+import { Download, Loader2, Phone, PhoneCall } from 'lucide-react';
 import { CreativeBrief, Deliverables, BriefImages } from '@/lib/types';
 import { TextGradientScroll } from '@/components/21st/TextGradientScroll';
 import { Typewriter } from '@/components/21st/Typewriter';
@@ -79,7 +79,6 @@ export default function CreativeStrategyBriefPage({ params }: PageProps) {
   const [isStuck, setIsStuck] = useState(false);
   const [editorialSummary, setEditorialSummary] = useState<string | null>(null);
   const [editorialLoading, setEditorialLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   // Fetch initial brief data
   useEffect(() => {
@@ -415,13 +414,6 @@ export default function CreativeStrategyBriefPage({ params }: PageProps) {
       ]
     : [];
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(window.location.href).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
-
   return (
     <main className="min-h-screen bg-[#0a0a0a]">
       {/* ── Section 1: Hero ───────────────────────────────────── */}
@@ -517,36 +509,44 @@ export default function CreativeStrategyBriefPage({ params }: PageProps) {
               <p className="text-gray-500 mt-3 text-lg">Multi-platform campaigns</p>
             </div>
             <div className="flex flex-col md:flex-row gap-8 justify-center items-start">
-              {facebookCampaigns.slice(0, 3).map((campaign, i) => {
-                if (i === 2) {
-                  // Third slot: Google Search Ad
-                  return (
-                    <GoogleAdPreview
-                      key={i}
-                      headline={campaign.headline}
-                      headline2={brief.callToAction?.split(' ').slice(0, 4).join(' ')}
-                      headline3={brief.brandPromise?.split(' ').slice(0, 5).join(' ')}
-                      description={campaign.description + (campaign.primaryText ? ' ' + campaign.primaryText.slice(0, 60) : '')}
-                      displayUrl={domain}
-                      path1="solutions"
-                      targetLabel={campaign.targetAvatar}
-                    />
-                  );
-                }
-                return (
-                  <FbAdPreview
-                    key={i}
-                    pageName={domain}
-                    primaryText={campaign.primaryText}
-                    headline={campaign.headline}
-                    description={campaign.description}
-                    ctaLabel={brief.callToAction?.split(' ').slice(0, 3).join(' ') || 'Learn More'}
-                    imageUrl={briefData.images?.facebookImages?.[i] || briefData.images?.avatars?.[i] || `https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=600&h=600&fit=crop`}
-                    targetLabel={campaign.targetAvatar}
-                    accentColor={FB_AD_ACCENTS[i]}
-                  />
-                );
-              })}
+              {/* FB Ad 1 */}
+              {facebookCampaigns.length >= 1 && (
+                <FbAdPreview
+                  pageName={domain}
+                  primaryText={facebookCampaigns[0].primaryText}
+                  headline={facebookCampaigns[0].headline}
+                  description={facebookCampaigns[0].description}
+                  ctaLabel={brief.callToAction?.split(' ').slice(0, 3).join(' ') || 'Learn More'}
+                  imageUrl={briefData.images?.facebookImages?.[0] || briefData.images?.avatars?.[0] || 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=600&h=600&fit=crop'}
+                  targetLabel={facebookCampaigns[0].targetAvatar}
+                  accentColor={FB_AD_ACCENTS[0]}
+                />
+              )}
+              {/* Google Search Ad (middle) */}
+              {facebookCampaigns.length >= 3 && (
+                <GoogleAdPreview
+                  headline={facebookCampaigns[2].headline}
+                  headline2={brief.callToAction?.split(' ').slice(0, 4).join(' ')}
+                  headline3={brief.brandPromise?.split(' ').slice(0, 5).join(' ')}
+                  description={facebookCampaigns[2].description + (facebookCampaigns[2].primaryText ? ' ' + facebookCampaigns[2].primaryText.slice(0, 60) : '')}
+                  displayUrl={domain}
+                  path1="solutions"
+                  targetLabel={facebookCampaigns[2].targetAvatar}
+                />
+              )}
+              {/* FB Ad 2 */}
+              {facebookCampaigns.length >= 2 && (
+                <FbAdPreview
+                  pageName={domain}
+                  primaryText={facebookCampaigns[1].primaryText}
+                  headline={facebookCampaigns[1].headline}
+                  description={facebookCampaigns[1].description}
+                  ctaLabel={brief.callToAction?.split(' ').slice(0, 3).join(' ') || 'Learn More'}
+                  imageUrl={briefData.images?.facebookImages?.[1] || briefData.images?.avatars?.[1] || 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=600&h=600&fit=crop'}
+                  targetLabel={facebookCampaigns[1].targetAvatar}
+                  accentColor={FB_AD_ACCENTS[1]}
+                />
+              )}
             </div>
           </div>
         </section>
@@ -562,14 +562,14 @@ export default function CreativeStrategyBriefPage({ params }: PageProps) {
         <div className="max-w-3xl mx-auto text-center">
           {/* Eyebrow */}
           <p className="text-xs font-medium uppercase tracking-[0.3em] text-white/20 mb-10">
-            Bullseye Agency
+            Daly & Co
           </p>
 
           {/* Headline */}
-          <h2 className="text-3xl md:text-5xl lg:text-6xl font-light text-white leading-tight">
+          <h2 className="text-2xl md:text-3xl lg:text-4xl font-light text-white leading-tight">
             This is what we see from the outside.
             <br />
-            The real work starts when we get inside.
+            The real work starts when we work from the inside.
           </h2>
 
           {/* Subline */}
@@ -581,44 +581,48 @@ export default function CreativeStrategyBriefPage({ params }: PageProps) {
 
           {/* Three action cards */}
           <div className="flex flex-col md:flex-row gap-4 justify-center items-stretch max-w-2xl mx-auto mt-16">
-            {/* Option 1: Book a strategy call */}
+            {/* Option 1: Book a call */}
             <a
-              href="mailto:hello@bullseyeagency.com?subject=Strategy Call Request&body=I reviewed my creative brief and would like to book a call."
+              href="https://thebullseye.agency/strategy-calls/"
+              target="_blank"
+              rel="noopener noreferrer"
               className="flex-1 min-w-[180px] border border-white/20 rounded-2xl p-6 flex flex-col items-center text-center gap-3 hover:border-white/30 hover:bg-white/5 transition-all cursor-pointer no-underline"
             >
               <Phone className="w-5 h-5 text-white" />
-              <span className="text-white font-medium text-sm">Book a Strategy Call</span>
+              <span className="text-white font-medium text-sm">Book a Call</span>
               <span className="text-gray-500 text-xs">30 min — no pitch, just strategy</span>
             </a>
 
-            {/* Option 2: Share with team */}
-            <button
-              onClick={handleCopyLink}
-              className="flex-1 min-w-[180px] border border-white/10 rounded-2xl p-6 flex flex-col items-center text-center gap-3 hover:border-white/30 hover:bg-white/5 transition-all cursor-pointer bg-transparent"
-            >
-              <Share2 className="w-5 h-5 text-white" />
-              <span className="text-white font-medium text-sm">
-                {copied ? 'Copied!' : 'Share with My Team'}
-              </span>
-              <span className="text-gray-500 text-xs">Copy the link to this brief</span>
-            </button>
-
-            {/* Option 3: Request revisions */}
+            {/* Option 2: Download PDF */}
             <a
-              href="mailto:hello@bullseyeagency.com?subject=Brief Revision Request&body=I reviewed my creative brief and have some feedback..."
+              href={`/api/brief/${slug}/pdf`}
+              download
               className="flex-1 min-w-[180px] border border-white/10 rounded-2xl p-6 flex flex-col items-center text-center gap-3 hover:border-white/30 hover:bg-white/5 transition-all cursor-pointer no-underline"
             >
-              <RefreshCw className="w-5 h-5 text-white" />
-              <span className="text-white font-medium text-sm">Request Revisions</span>
-              <span className="text-gray-500 text-xs">Tell us what to adjust</span>
+              <Download className="w-5 h-5 text-white" />
+              <span className="text-white font-medium text-sm">Download PDF</span>
+              <span className="text-gray-500 text-xs">Share with your team</span>
+            </a>
+
+            {/* Option 3: Call us now */}
+            <a
+              href="tel:+14694276223"
+              className="flex-1 min-w-[180px] border border-white/10 rounded-2xl p-6 flex flex-col items-center text-center gap-3 hover:border-white/30 hover:bg-white/5 transition-all cursor-pointer no-underline"
+            >
+              <PhoneCall className="w-5 h-5 text-white" />
+              <span className="text-white font-medium text-sm">Call Us Now</span>
+              <span className="text-gray-500 text-xs">+1 469.427.6223</span>
             </a>
           </div>
 
           {/* Bottom line */}
           <div className="mt-16">
             <div className="w-px h-8 bg-white/10 mx-auto" />
-            <p className="text-xs text-gray-600 text-center mt-4">
-              &copy; Bullseye Agency &middot; briefs.dalyandco.com
+            <p className="text-sm text-white/60 text-center mt-4 font-light">
+              Marco Hernandez
+            </p>
+            <p className="text-xs text-gray-600 text-center mt-1">
+              Chief Visionary Officer &middot; Daly & Co
             </p>
           </div>
         </div>

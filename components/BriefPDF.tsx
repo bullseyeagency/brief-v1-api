@@ -219,7 +219,7 @@ export default function BriefPDF({
         <Text style={styles.coverSubtitle}>{sourceUrl}</Text>
         <Text style={styles.coverMeta}>Generated: {generatedDate}</Text>
         <Text style={styles.coverMeta}>
-          Provider: {provider}  |  Model: {model}
+          Prepared by Marco Hernandez  |  marco@dalyandco.com
         </Text>
       </Page>
 
