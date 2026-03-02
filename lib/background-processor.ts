@@ -287,28 +287,12 @@ export async function processBriefGeneration(options: ProcessOptions) {
     }
 
     await updateBriefStatus(briefId, {
-      progress: 85,
-      current_task: 'Generating magazine pages',
+      progress: 82,
+      current_task: 'Deliverables and avatars ready — refining ad copy',
       log: avatarUrls
-        ? `Deliverables ready. Avatars generated — starting 10 magazine pages...`
-        : 'Deliverables ready.',
+        ? 'Deliverables ready. Avatars generated — refining ad copy...'
+        : 'Deliverables ready — refining ad copy...',
     });
-
-    // Stage 4: Magazine pages (after avatars are ready)
-    let magazinePages = null;
-    if (nanoBananaKey && avatarUrls) {
-      try {
-        magazinePages = await generateMagazinePages(brief, businessName, avatarUrls, imageModel);
-        console.log('[Background] Magazine pages generated successfully');
-        await updateBriefStatus(briefId, {
-          progress: 92,
-          current_task: 'Magazine pages complete — saving images',
-          log: 'Magazine pages generated',
-        });
-      } catch (pagesError) {
-        console.error('[Background] Magazine page generation failed (brief will complete without magazine pages):', pagesError);
-      }
-    }
 
     // Parse deliverables
     let deliverables: Deliverables;
@@ -328,11 +312,11 @@ export async function processBriefGeneration(options: ProcessOptions) {
       };
     }
 
-    // Stage 4b: Refine Facebook ad copy
+    // Stage 4: Refine Facebook ad copy (before image generation so refined copy is available for campaign images)
     if (Array.isArray(deliverables.facebookCampaigns) && deliverables.facebookCampaigns.length > 0) {
       try {
         await updateBriefStatus(briefId, {
-          progress: 86,
+          progress: 84,
           current_task: 'Refining ad copy',
           log: 'Refining Facebook ad copy...',
         });
@@ -346,7 +330,49 @@ export async function processBriefGeneration(options: ProcessOptions) {
       }
     }
 
-    // Stage 5: Save images to Supabase Storage
+    // Stage 5: Run magazine pages and campaign images concurrently
+    await updateBriefStatus(briefId, {
+      progress: 86,
+      current_task: 'Generating images',
+      log: 'Generating magazine pages and campaign images in parallel...',
+    });
+
+    const [magazinePagesResult, campaignImagesResult] = await Promise.allSettled([
+      // Magazine pages (needs brief + avatarUrls)
+      nanoBananaKey && avatarUrls
+        ? generateMagazinePages(brief, businessName, avatarUrls, imageModel)
+        : Promise.resolve(null),
+      // Campaign images (needs deliverables)
+      nanoBananaKey &&
+        Array.isArray(deliverables.facebookCampaigns) &&
+        (deliverables.facebookCampaigns as FacebookCampaign[]).length >= 3 &&
+        deliverables.video8s
+        ? generateCampaignImages(deliverables, businessName)
+        : Promise.resolve(null),
+    ]);
+
+    const magazinePages = magazinePagesResult.status === 'fulfilled' ? magazinePagesResult.value : null;
+    const campaignImagesData = campaignImagesResult.status === 'fulfilled' ? campaignImagesResult.value : null;
+
+    if (magazinePagesResult.status === 'rejected') {
+      console.error('[Background] Magazine page generation failed (non-fatal):', magazinePagesResult.reason);
+    } else if (magazinePages) {
+      console.log('[Background] Magazine pages generated successfully');
+    }
+
+    if (campaignImagesResult.status === 'rejected') {
+      console.error('[Background] Campaign image generation failed (non-fatal):', campaignImagesResult.reason);
+    } else if (campaignImagesData) {
+      console.log('[Background] Campaign images generated successfully');
+    }
+
+    await updateBriefStatus(briefId, {
+      progress: 93,
+      current_task: 'Saving images',
+      log: 'Parallel image generation complete — saving to storage...',
+    });
+
+    // Stage 6: Save images to Supabase Storage
     let savedImages: object | undefined;
     let imageCredits: number | undefined;
     let imageCostUsd: number | undefined;
@@ -368,33 +394,20 @@ export async function processBriefGeneration(options: ProcessOptions) {
         };
 
         savedImages = await saveMagazineImages(briefId, tempImages);
-        console.log(`[Background] ✅ Images saved — ${imageCredits} credits ($${imageCostUsd})`);
+        console.log(`[Background] ✅ Magazine images saved — ${imageCredits} credits ($${imageCostUsd})`);
       } catch (imgError) {
-        console.error('[Background] Image save failed (non-fatal):', imgError);
+        console.error('[Background] Magazine image save failed (non-fatal):', imgError);
       }
     }
 
-    // Stage 5b: Campaign images (FB ads + storyboard)
-    if (
-      nanoBananaKey &&
-      Array.isArray(deliverables.facebookCampaigns) &&
-      (deliverables.facebookCampaigns as FacebookCampaign[]).length >= 3 &&
-      deliverables.video8s
-    ) {
+    if (campaignImagesData) {
       try {
-        await updateBriefStatus(briefId, {
-          progress: 94,
-          current_task: 'Generating campaign images',
-          log: 'Generating Facebook ad images and storyboard frames...',
-        });
-        const campaignImages = await generateCampaignImages(deliverables, businessName);
-        const savedCampaignImages = await saveCampaignImages(briefId, campaignImages);
-        // Merge into savedImages
-        savedImages = { ...(savedImages as object), ...savedCampaignImages };
-        await updateBriefStatus(briefId, { log: 'Campaign images generated and saved' });
+        const savedCampaignImages = await saveCampaignImages(briefId, campaignImagesData);
+        savedImages = { ...(savedImages as object ?? {}), ...savedCampaignImages };
+        await updateBriefStatus(briefId, { log: 'Campaign images saved' });
         console.log('[Background] ✅ Campaign images saved');
-      } catch (campaignError) {
-        console.error('[Background] Campaign image generation failed (non-fatal):', campaignError);
+      } catch (campaignSaveError) {
+        console.error('[Background] Campaign image save failed (non-fatal):', campaignSaveError);
       }
     }
 
@@ -426,7 +439,13 @@ export async function processBriefGeneration(options: ProcessOptions) {
       console.log(`[Background] Tokens — brief: ${briefIn}in/${briefOut}out, deliverables: ${delivIn}in/${delivOut}out, total: ${totalIn + totalOut}, cost: $${costUsd}`);
     }
 
-    // Stage 6: Complete
+    await updateBriefStatus(briefId, {
+      progress: 97,
+      current_task: 'Finalizing',
+      log: 'Images saved — finalizing brief...',
+    });
+
+    // Stage 7: Complete
     await updateBriefStatus(briefId, {
       status: 'completed',
       progress: 100,
