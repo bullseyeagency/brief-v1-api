@@ -515,7 +515,7 @@ export async function processBriefGeneration(options: ProcessOptions) {
 
     // Fire callback if provided
     if (briefRecord?.callback_url) {
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://briefs.dalyandco.com';
+      const siteUrl = 'https://briefs.dalyandco.com';
       const { data: completedBrief } = await supabase
         .from('v1_generated_briefs')
         .select('public_slug')

@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
     console.log(`[API] Using provider: ${provider}, model: ${model}`);
 
     // Determine site URL for API responses
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || request.nextUrl.origin;
+    const siteUrl = 'https://briefs.dalyandco.com';
 
     // Step 1: Crawl the website
     console.log('[API] Starting crawl...');
