@@ -70,11 +70,10 @@ export async function POST(request: NextRequest) {
     console.log('[API] Creating brief for:', url);
 
     // Get server-side API keys
-    const openaiKey = process.env.OPENAI_API_KEY;
     const claudeKey = process.env.ANTHROPIC_API_KEY;
     const geminiKey = process.env.GEMINI_API_KEY;
 
-    if (!openaiKey && !claudeKey && !geminiKey) {
+    if (!claudeKey && !geminiKey) {
       return NextResponse.json(
         { success: false, error: 'Server configuration error: No AI provider keys configured' },
         { status: 500, headers: corsHeaders }
@@ -86,11 +85,7 @@ export async function POST(request: NextRequest) {
     let apiKey: string;
     let model: string;
 
-    if (openaiKey) {
-      provider = 'openai';
-      apiKey = openaiKey;
-      model = 'gpt-5.2-2025-12-11';
-    } else if (claudeKey) {
+    if (claudeKey) {
       provider = 'claude';
       apiKey = claudeKey;
       model = 'claude-sonnet-4-6';

@@ -31,33 +31,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const userPrompt = `Rewrite the following business summary into client-oriented copy:\n\n${text}${context ? '\n\nBusiness context: ' + context : ''}`;
 
-    const openAiKey = process.env.OPENAI_API_KEY;
     const anthropicKey = process.env.ANTHROPIC_API_KEY;
-
-    if (openAiKey) {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${openAiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o',
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: userPrompt },
-          ],
-          max_tokens: 600,
-          temperature: 0.4,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const rewritten: string = data.choices?.[0]?.message?.content?.trim() ?? text;
-        return NextResponse.json({ rewritten });
-      }
-    }
 
     if (anthropicKey) {
       const response = await fetch('https://api.anthropic.com/v1/messages', {

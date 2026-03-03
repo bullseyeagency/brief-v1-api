@@ -131,7 +131,7 @@ export async function processBriefGeneration(options: ProcessOptions) {
   const { briefId, crawlResult, provider, model, apiKey } = options;
 
   // Declared outside try/catch so catch block can access for failure callback
-  let briefRecord: { metadata: any; status: string; callback_url: string | null; sophia_contact_id: string | null } | null = null;
+  let briefRecord: { metadata: any; status: string; callback_url: string | null; sophia_contact_id: string | null; public_slug: string | null } | null = null;
 
   try {
     // Atomic claim: only update if progress <= 40 and status = processing
@@ -152,7 +152,7 @@ export async function processBriefGeneration(options: ProcessOptions) {
     // Fetch remaining fields now that we've claimed it
     const { data: fetchedRecord } = await supabase
       .from('v1_generated_briefs')
-      .select('metadata, callback_url, sophia_contact_id, status')
+      .select('metadata, callback_url, sophia_contact_id, status, public_slug')
       .eq('id', briefId)
       .single();
     briefRecord = fetchedRecord;
@@ -422,6 +422,8 @@ export async function processBriefGeneration(options: ProcessOptions) {
     let imageCredits: number | undefined;
     let imageCostUsd: number | undefined;
 
+    const storageFolder = briefRecord?.public_slug ?? briefId;
+
     if (nanoBananaKey && avatarUrls && magazinePages) {
       try {
         const creditsPerImage = 2; // gemini-2.5-flash-image
@@ -448,7 +450,7 @@ export async function processBriefGeneration(options: ProcessOptions) {
           imageCostUsd,
         } as MagazineImageGenerationResult;
 
-        savedImages = await saveMagazineImages(briefId, tempImages);
+        savedImages = await saveMagazineImages(storageFolder, tempImages);
         console.log(`[Background] ✅ Magazine images saved — ${imageCredits} credits ($${imageCostUsd})`);
       } catch (imgError) {
         console.error('[Background] Magazine image save failed (non-fatal):', imgError);
@@ -457,7 +459,7 @@ export async function processBriefGeneration(options: ProcessOptions) {
 
     if (campaignImagesData) {
       try {
-        const savedCampaignImages = await saveCampaignImages(briefId, campaignImagesData);
+        const savedCampaignImages = await saveCampaignImages(storageFolder, campaignImagesData);
         savedImages = { ...(savedImages as object ?? {}), ...savedCampaignImages };
         await updateBriefStatus(briefId, { log: 'Campaign images saved' });
         console.log('[Background] ✅ Campaign images saved');
@@ -532,35 +534,11 @@ export async function processBriefGeneration(options: ProcessOptions) {
 
         const userPrompt = `Rewrite the following business summary into client-oriented copy:\n\n${websiteSummary}\n\nBusiness context: ${crawlResult.mainUrl}`;
 
-        const openAiKey = process.env.OPENAI_API_KEY;
         const anthropicKey = process.env.ANTHROPIC_API_KEY;
 
         let editorialSummary: string | null = null;
 
-        if (openAiKey) {
-          const response = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${openAiKey}`,
-            },
-            body: JSON.stringify({
-              model: 'gpt-4o',
-              messages: [
-                { role: 'system', content: EDITORIAL_SYSTEM_PROMPT },
-                { role: 'user', content: userPrompt },
-              ],
-              max_tokens: 600,
-              temperature: 0.4,
-            }),
-          });
-          if (response.ok) {
-            const data = await response.json();
-            editorialSummary = data.choices?.[0]?.message?.content?.trim() ?? null;
-          }
-        }
-
-        if (!editorialSummary && anthropicKey) {
+        if (anthropicKey) {
           const response = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: {

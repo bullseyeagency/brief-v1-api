@@ -87,11 +87,10 @@ export async function POST(request: NextRequest) {
 
     // If no apiKey provided, use server-side keys
     if (!apiKey) {
-      const openaiKey = process.env.OPENAI_API_KEY;
       const claudeKey = process.env.ANTHROPIC_API_KEY;
       const geminiKey = process.env.GEMINI_API_KEY;
 
-      if (!openaiKey && !claudeKey && !geminiKey) {
+      if (!claudeKey && !geminiKey) {
         return NextResponse.json(
           { error: 'No API keys configured. Please add keys in settings or configure server environment variables.' },
           { status: 500 }
@@ -104,10 +103,6 @@ export async function POST(request: NextRequest) {
           provider = 'claude';
           apiKey = claudeKey;
           model = model || 'claude-sonnet-4-6';
-        } else if (openaiKey) {
-          provider = 'openai';
-          apiKey = openaiKey;
-          model = model || 'gpt-4o';
         } else {
           provider = 'gemini';
           apiKey = geminiKey!;
@@ -116,7 +111,7 @@ export async function POST(request: NextRequest) {
       } else {
         // Provider specified, get matching key
         const keys: Record<AIProvider, string | undefined> = {
-          openai: openaiKey,
+          openai: undefined,
           claude: claudeKey,
           gemini: geminiKey,
         };
