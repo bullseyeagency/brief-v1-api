@@ -138,7 +138,7 @@ export default function BriefsListPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-7xl mx-auto p-4">
           <div className="flex items-center justify-center h-64">
             <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
           </div>
@@ -149,13 +149,13 @@ export default function BriefsListPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto p-4">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+        <div className="mb-3">
+          <h1 className="text-lg font-semibold text-gray-900 mb-1">
             Creative Briefs
           </h1>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-600 mb-2">
             All generated creative briefs from brief-v1-api
           </p>
           {/* Tabs */}
@@ -168,7 +168,7 @@ export default function BriefsListPage() {
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`px-4 py-2 text-sm font-medium capitalize transition-colors border-b-2 -mb-px ${
+                  className={`px-3 py-1.5 text-xs font-medium capitalize transition-colors border-b-2 -mb-px ${
                     activeTab === tab
                       ? 'border-blue-600 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -183,7 +183,7 @@ export default function BriefsListPage() {
 
         {/* Error State */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-2">
             <p className="text-red-700">{error}</p>
           </div>
         )}
@@ -214,22 +214,19 @@ export default function BriefsListPage() {
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-2 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Source URL
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-2 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Type
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Provider
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-2 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Model
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-2 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Created
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-2 py-1.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -239,9 +236,9 @@ export default function BriefsListPage() {
                     <tr
                       key={brief.id}
                       className="hover:bg-gray-50 transition-colors cursor-pointer"
-                      onClick={() => router.push(`/creative-strategy-brief/${brief.public_slug}`)}
+                      onClick={() => router.push(`/brief-report/${brief.public_slug}`)}
                     >
-                      <td className="px-6 py-4">
+                      <td className="px-2 py-1.5 text-xs">
                         <div className="flex items-center gap-2">
                           <ExternalLink className="w-4 h-4 text-gray-400 flex-shrink-0" />
                           <div className="max-w-xs truncate">
@@ -257,31 +254,22 @@ export default function BriefsListPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-2 py-1.5 text-xs">
                         <span
-                          className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getTypeColor(
+                          className={`inline-flex px-1.5 py-0.5 text-xs font-medium rounded-full ${getTypeColor(
                             (brief as any).metadata?.type
                           )}`}
                         >
                           {getTypeName((brief as any).metadata?.type)}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getProviderColor(
-                            brief.provider
-                          )}`}
-                        >
-                          {brief.provider}
-                        </span>
+                      <td className="px-2 py-1.5 text-xs text-gray-900">
+                        <span className="px-1.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-700 rounded">{brief.model}</span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {brief.model}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
+                      <td className="px-2 py-1.5 text-xs text-gray-900">
                         {formatDate(brief.created_at)}
                       </td>
-                      <td className="px-6 py-4 text-right text-sm">
+                      <td className="px-2 py-1.5 text-right text-xs">
                         <div className="flex items-center justify-end gap-3">
                           {/* Final */}
                           <a
@@ -293,16 +281,16 @@ export default function BriefsListPage() {
                             title="View final brief"
                           >
                             <Sparkles className="w-4 h-4" />
-                            <span className="text-[10px] font-medium leading-none">Final</span>
+                            <span className="text-[10px] font-medium leading-none">Visual</span>
                           </a>
                           {/* Original */}
                           <button
-                            onClick={(e) => { e.stopPropagation(); router.push(`/brief/${brief.public_slug}`); }}
+                            onClick={(e) => { e.stopPropagation(); router.push(`/brief-report/${brief.public_slug}`); }}
                             className="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-700 transition-colors"
                             title="View original brief"
                           >
                             <Archive className="w-4 h-4" />
-                            <span className="text-[10px] font-medium leading-none">Original</span>
+                            <span className="text-[10px] font-medium leading-none">Report</span>
                           </button>
 
                           {/* Divider */}
@@ -342,7 +330,7 @@ export default function BriefsListPage() {
                             {regenerating?.briefId === brief.id && regenerating.type === 'facebook'
                               ? <Loader2 className="w-4 h-4 animate-spin" />
                               : <Image className="w-4 h-4" />}
-                            <span className="text-[10px] font-medium leading-none">FB Ads</span>
+                            <span className="text-[10px] font-medium leading-none">META</span>
                           </button>
                           {/* Regen TV */}
                           <button
@@ -396,7 +384,7 @@ export default function BriefsListPage() {
 
         {/* Stats Footer */}
         {filteredBriefs.length > 0 && (
-          <div className="mt-6 text-center text-sm text-gray-500">
+          <div className="mt-2 text-center text-xs text-gray-500">
             Showing {filteredBriefs.length} of {briefs.length} {briefs.length === 1 ? 'brief' : 'briefs'}
           </div>
         )}

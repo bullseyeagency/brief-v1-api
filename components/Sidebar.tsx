@@ -2,7 +2,8 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { PlusCircle, FileText, Settings, Sparkles } from 'lucide-react';
+import { PlusCircle, FileText, Settings, Sparkles, LogOut } from 'lucide-react';
+import { logout } from '@/app/(auth)/login/actions';
 import { useEffect, useState } from 'react';
 import { loadBriefOutput, BriefOutput } from '@/lib/store';
 
@@ -39,7 +40,7 @@ export default function Sidebar() {
       disabled: !hasOutput,
     },
     {
-      href: '/briefs',
+      href: '/all-briefs',
       label: 'All Briefs',
       icon: <FileText className="w-5 h-5" />,
     },
@@ -130,15 +131,18 @@ export default function Sidebar() {
         </div>
       </nav>
 
-      {/* Last Generated */}
-      {hasOutput && lastUrl && (
-        <div className="p-4 border-t border-gray-800">
-          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-2">Last Generated</p>
-          <p className="text-xs text-gray-400 truncate" title={lastUrl}>
-            {lastUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-          </p>
-        </div>
-      )}
+      {/* Sign Out */}
+      <div className="px-3 pb-3">
+        <form action={logout}>
+          <button
+            type="submit"
+            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg transition-colors text-gray-300 hover:bg-gray-800 hover:text-white"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="text-sm">Sign Out</span>
+          </button>
+        </form>
+      </div>
 
       {/* Footer */}
       <div className="p-4 border-t border-gray-800">

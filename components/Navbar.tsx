@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Sparkles, FileText, Settings as SettingsIcon } from 'lucide-react';
+import { Sparkles, FileText, Settings as SettingsIcon, LogOut } from 'lucide-react';
+import { logout } from '@/app/(auth)/login/actions';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -13,7 +14,7 @@ export default function Navbar() {
 
   const navItems = [
     { href: '/', label: 'Generate', icon: Sparkles },
-    { href: '/briefs', label: 'All Briefs', icon: FileText },
+    { href: '/all-briefs', label: 'All Briefs', icon: FileText },
     { href: '/settings', label: 'Settings', icon: SettingsIcon },
   ];
 
@@ -54,6 +55,15 @@ export default function Navbar() {
                 </Link>
               );
             })}
+            <form action={logout}>
+              <button
+                type="submit"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                Sign Out
+              </button>
+            </form>
           </div>
         </div>
       </div>
