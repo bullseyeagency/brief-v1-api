@@ -49,11 +49,11 @@ export default function Home() {
       const data = await response.json();
 
       if (data.success && data.publicUrl) {
-        // Extract slug from publicUrl
-        const slug = data.publicUrl.split('/brief/')[1];
+        // Extract slug from publicUrl (URL pattern is /creative-strategy-brief/<slug>)
+        const slug = data.slug || data.publicUrl.split('/').pop();
 
-        // Redirect to the new brief page
-        router.push(`/brief/${slug}`);
+        // Redirect to the status page
+        router.push(`/brief-status/${slug}`);
       } else {
         throw new Error('Failed to get brief URL');
       }

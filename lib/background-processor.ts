@@ -8,10 +8,9 @@ import { generateWithProvider } from './providers';
 import { buildSystemPrompt, buildGenerationPrompt, buildLocalGenerationPrompt, buildShopifyGenerationPrompt, buildDeliverablesPrompt } from './prompts';
 import { validateCreativeBrief, sanitizeEmDashes } from './validation';
 import { cleanupCrawlResult, convertToLegacyFormat } from './crawl-cleanup';
-import { CrawlResult, AIProvider, CreativeBrief, Deliverables, FacebookCampaign } from './types';
+import { CrawlResult, AIProvider, CreativeBrief, Deliverables } from './types';
 import { generateAvatarImages, generateMagazinePages, generateCampaignImages, MagazineImageGenerationResult } from './image-generator';
 import { saveMagazineImages, saveCampaignImages } from './image-storage';
-import { refineFacebookAdCopy } from './ad-copy-refine';
 
 interface ProcessOptions {
   briefId: string;
@@ -186,17 +185,16 @@ export async function processBriefGeneration(options: ProcessOptions) {
     const briefType = briefRecord?.metadata?.type as 'local' | 'shopify' | undefined;
     console.log(`[Background] Brief type: ${briefType || 'default'}`);
 
-    // Stage 1: Clean crawl data (30-35%)
+    // Stage 1: Prepare content (30-44%)
     await updateBriefStatus(briefId, {
       progress: 30,
-      current_task: 'Cleaning crawl data',
+      current_task: 'Preparing content',
       log: 'Cleaning and normalizing crawl data...',
     });
 
     const { cleanedPages, stats } = cleanupCrawlResult(crawlResult);
     await updateBriefStatus(briefId, {
-      progress: 35,
-      log: `Reduced from ${stats.original} to ${cleanedPages.length} pages`,
+      log: `Reduced from ${stats.original} to ${cleanedPages.length} pages — building ${briefType || 'default'} prompts...`,
     });
 
     const cleanedCrawlResult = convertToLegacyFormat(
@@ -204,13 +202,6 @@ export async function processBriefGeneration(options: ProcessOptions) {
       crawlResult.mainUrl,
       crawlResult.crawledAt
     );
-
-    // Stage 2: Generate Brief (35-70%)
-    await updateBriefStatus(briefId, {
-      progress: 40,
-      current_task: 'Preparing AI prompts',
-      log: `Building ${briefType || 'default'} generation prompts...`,
-    });
 
     const systemPrompt = buildSystemPrompt();
 
@@ -226,19 +217,8 @@ export async function processBriefGeneration(options: ProcessOptions) {
 
     await updateBriefStatus(briefId, {
       progress: 45,
-      current_task: 'Sending to AI for brief generation',
-      log: `System prompt: ${systemPrompt.length} characters`,
-    });
-
-    await updateBriefStatus(briefId, {
-      progress: 50,
-      log: `Generation prompt: ${generationPrompt.length} characters`,
-    });
-
-    await updateBriefStatus(briefId, {
-      progress: 55,
-      current_task: 'AI is generating creative brief',
-      log: `Using ${provider} - ${model}`,
+      current_task: 'Generating brief',
+      log: `Sending to ${provider} (${model}) — system: ${systemPrompt.length} chars, prompt: ${generationPrompt.length} chars`,
     });
 
     const briefResult = await generateWithProvider(provider, {
@@ -265,11 +245,11 @@ export async function processBriefGeneration(options: ProcessOptions) {
 
     await updateBriefStatus(briefId, {
       progress: 70,
-      current_task: 'Brief complete — starting deliverables + avatar images',
-      log: `Brief generated with ${brief.avatars.length} avatars`,
+      current_task: 'Generating deliverables',
+      log: `Brief generated with ${brief.avatars.length} avatars — starting deliverables...`,
     });
 
-    // Stage 3: Deliverables, then avatar images
+    // Stage 3: Deliverables only (no images yet)
     const deliverablesPrompt = buildDeliverablesPrompt(JSON.stringify(brief, null, 2));
     const nanoBananaKey = process.env.NANOBANANA_API_KEY;
     const imageModel = 'gemini-2.5-flash-image';
@@ -278,15 +258,7 @@ export async function processBriefGeneration(options: ProcessOptions) {
       catch { return 'Business'; }
     })();
 
-    await updateBriefStatus(briefId, {
-      progress: 72,
-      current_task: 'Generating deliverables + avatar images',
-      log: nanoBananaKey
-        ? 'Generating deliverables, then avatar images...'
-        : 'Generating deliverables...',
-    });
-
-    // Run deliverables first
+    // Run deliverables
     const deliverablesResult = await generateWithProvider(provider, {
       systemPrompt: 'You are a creative copywriter. Generate deliverables based on the creative brief. Respond with valid JSON only.',
       userPrompt: deliverablesPrompt,
@@ -294,31 +266,10 @@ export async function processBriefGeneration(options: ProcessOptions) {
       model,
     });
 
-    // TODO: Avatar generation temporarily disabled — rebuilding module
-    // Run avatar generation separately — failure is non-fatal
-    // let avatarUrls: [string, string, string] | null = null;
-    // if (nanoBananaKey && imageSlots.avatars) {
-    //   try {
-    //     avatarUrls = await generateAvatarImages(brief, businessName, imageModel);
-    //     console.log('[Background] Avatar images generated successfully');
-    //   } catch (avatarError) {
-    //     const avatarErrMsg = avatarError instanceof Error ? avatarError.message : String(avatarError);
-    //     console.error('[Background] Avatar generation failed (brief will complete without images):', avatarError);
-    //     await updateBriefStatus(briefId, { log: `⚠️ Avatar image generation failed: ${avatarErrMsg}` });
-    //   }
-    // } else if (!nanoBananaKey) {
-    //   console.warn('[Background] NANOBANANA_API_KEY not configured — skipping avatar generation');
-    // } else {
-    //   console.log('[Background] Avatar slot disabled — skipping avatar generation');
-    // }
-    const avatarUrls: [string, string, string] | null = null;
-
     await updateBriefStatus(briefId, {
       progress: 82,
-      current_task: 'Deliverables and avatars ready — refining ad copy',
-      log: avatarUrls
-        ? 'Deliverables ready. Avatars generated — refining ad copy...'
-        : 'Deliverables ready — refining ad copy...',
+      current_task: 'Generating deliverables',
+      log: 'Deliverables ready — parsing...',
     });
 
     // Parse deliverables
@@ -339,28 +290,79 @@ export async function processBriefGeneration(options: ProcessOptions) {
       };
     }
 
-    // Stage 4: Refine Facebook ad copy (before image generation so refined copy is available for campaign images)
-    if (Array.isArray(deliverables.facebookCampaigns) && deliverables.facebookCampaigns.length > 0) {
+    // Stage 4: Avatar generation (83-89) — start editorial summary concurrently
+    await updateBriefStatus(briefId, {
+      progress: 83,
+      current_task: 'Generating avatars',
+      log: nanoBananaKey && imageSlots.avatars
+        ? 'Generating avatar images...'
+        : 'Skipping avatar images — slot disabled or no API key',
+    });
+
+    // Fire editorial summary in parallel with image generation — await just before final DB write
+    const editorialSummaryPromise: Promise<string | null> = (async () => {
       try {
-        await updateBriefStatus(briefId, {
-          progress: 84,
-          current_task: 'Refining ad copy',
-          log: 'Refining Facebook ad copy...',
+        const websiteSummary = deliverables?.websiteSummary as string | undefined;
+        if (!websiteSummary) return null;
+
+        const EDITORIAL_SYSTEM_PROMPT = `You are an expert direct-response copywriter. Your job is to transform factual business summaries into client-oriented, benefit-driven copy that speaks directly to the reader. Rules:
+- Write in second person where natural ("you", "your customers")
+- Lead with the transformation or outcome, not the feature list
+- Keep all factual details (services, contact info, locations) but frame them as benefits
+- Break into 3-5 short paragraphs. Each paragraph = one clear idea
+- No marketing buzzwords ("world-class", "cutting-edge", "seamless")
+- Keep the same tone as the source — if it's a plumber, stay grounded; if it's a luxury brand, stay elevated
+- Output ONLY the rewritten copy, no explanation, no preamble`;
+
+        const userPrompt = `Rewrite the following business summary into client-oriented copy:\n\n${websiteSummary}\n\nBusiness context: ${crawlResult.mainUrl}`;
+        const anthropicKey = process.env.ANTHROPIC_API_KEY;
+        if (!anthropicKey) return null;
+
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': anthropicKey,
+            'anthropic-version': '2023-06-01',
+          },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-6',
+            max_tokens: 600,
+            system: EDITORIAL_SYSTEM_PROMPT,
+            messages: [{ role: 'user', content: userPrompt }],
+          }),
         });
-        deliverables.facebookCampaigns = await refineFacebookAdCopy(
-          deliverables.facebookCampaigns as FacebookCampaign[],
-          businessName
-        ) as FacebookCampaign[];
-        await updateBriefStatus(briefId, { log: 'Ad copy refined' });
-      } catch (refineError) {
-        console.error('[Background] Ad copy refinement failed (non-fatal):', refineError);
+        if (!response.ok) return null;
+        const data = await response.json();
+        return data.content?.[0]?.text?.trim() ?? null;
+      } catch (err) {
+        console.warn('[Background] Editorial summary failed (non-fatal):', err);
+        return null;
       }
+    })();
+
+    // Avatar generation — failure is non-fatal
+    let avatarUrls: [string, string, string] | null = null;
+    if (nanoBananaKey && imageSlots.avatars) {
+      try {
+        avatarUrls = await generateAvatarImages(brief, businessName, imageModel);
+        console.log('[Background] Avatar images generated successfully');
+        await updateBriefStatus(briefId, { log: 'Avatar images generated' });
+      } catch (avatarError) {
+        const avatarErrMsg = avatarError instanceof Error ? avatarError.message : String(avatarError);
+        console.error('[Background] Avatar generation failed (brief will complete without images):', avatarError);
+        await updateBriefStatus(briefId, { log: `Avatar image generation failed: ${avatarErrMsg}` });
+      }
+    } else if (!nanoBananaKey) {
+      console.warn('[Background] NANOBANANA_API_KEY not configured — skipping avatar generation');
+    } else {
+      console.log('[Background] Avatar slot disabled — skipping avatar generation');
     }
 
-    // Stage 5: Run magazine pages and campaign images concurrently
+    // Stage 5b: Section images using avatars as reference (90-94)
     await updateBriefStatus(briefId, {
-      progress: 86,
-      current_task: 'Generating images',
+      progress: 90,
+      current_task: 'Generating section images',
       log: 'Generating magazine pages and campaign images in parallel...',
     });
 
@@ -390,7 +392,7 @@ export async function processBriefGeneration(options: ProcessOptions) {
       nanoBananaKey &&
         (imageSlots.facebookImages || imageSlots.storyboardFrames) &&
         Array.isArray(deliverables.facebookCampaigns) &&
-        (deliverables.facebookCampaigns as FacebookCampaign[]).length >= 3 &&
+        (deliverables.facebookCampaigns as Array<unknown>).length >= 3 &&
         deliverables.video8s
         ? generateCampaignImages(deliverables, businessName)
         : Promise.resolve(null),
@@ -412,9 +414,9 @@ export async function processBriefGeneration(options: ProcessOptions) {
     }
 
     await updateBriefStatus(briefId, {
-      progress: 93,
+      progress: 95,
       current_task: 'Saving images',
-      log: 'Parallel image generation complete — saving to storage...',
+      log: 'Section image generation complete — saving to storage...',
     });
 
     // Stage 6: Save images to Supabase Storage
@@ -497,10 +499,20 @@ export async function processBriefGeneration(options: ProcessOptions) {
     }
 
     await updateBriefStatus(briefId, {
-      progress: 97,
-      current_task: 'Finalizing',
-      log: 'Images saved — finalizing brief...',
+      progress: 99,
+      current_task: 'Finalising',
+      log: 'Images saved — awaiting editorial summary...',
     });
+
+    // Await editorial summary (fired concurrently with avatar generation)
+    const editorialSummary = await editorialSummaryPromise;
+    if (editorialSummary) {
+      await supabase
+        .from('v1_generated_briefs')
+        .update({ editorial_summary: editorialSummary })
+        .eq('id', briefId);
+      console.log('[Background] Editorial summary cached');
+    }
 
     // Stage 7: Complete
     await updateBriefStatus(briefId, {
@@ -518,58 +530,6 @@ export async function processBriefGeneration(options: ProcessOptions) {
     });
 
     console.log(`[Background] ✅ Brief ${briefId} completed successfully`);
-
-    // Generate and cache editorial summary
-    try {
-      const websiteSummary = sanitizedDeliverables?.websiteSummary as string | undefined;
-      if (websiteSummary) {
-        const EDITORIAL_SYSTEM_PROMPT = `You are an expert direct-response copywriter. Your job is to transform factual business summaries into client-oriented, benefit-driven copy that speaks directly to the reader. Rules:
-- Write in second person where natural ("you", "your customers")
-- Lead with the transformation or outcome, not the feature list
-- Keep all factual details (services, contact info, locations) but frame them as benefits
-- Break into 3-5 short paragraphs. Each paragraph = one clear idea
-- No marketing buzzwords ("world-class", "cutting-edge", "seamless")
-- Keep the same tone as the source — if it's a plumber, stay grounded; if it's a luxury brand, stay elevated
-- Output ONLY the rewritten copy, no explanation, no preamble`;
-
-        const userPrompt = `Rewrite the following business summary into client-oriented copy:\n\n${websiteSummary}\n\nBusiness context: ${crawlResult.mainUrl}`;
-
-        const anthropicKey = process.env.ANTHROPIC_API_KEY;
-
-        let editorialSummary: string | null = null;
-
-        if (anthropicKey) {
-          const response = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-api-key': anthropicKey,
-              'anthropic-version': '2023-06-01',
-            },
-            body: JSON.stringify({
-              model: 'claude-sonnet-4-6',
-              max_tokens: 600,
-              system: EDITORIAL_SYSTEM_PROMPT,
-              messages: [{ role: 'user', content: userPrompt }],
-            }),
-          });
-          if (response.ok) {
-            const data = await response.json();
-            editorialSummary = data.content?.[0]?.text?.trim() ?? null;
-          }
-        }
-
-        if (editorialSummary) {
-          await supabase
-            .from('v1_generated_briefs')
-            .update({ editorial_summary: editorialSummary })
-            .eq('id', briefId);
-          console.log('[Background] Editorial summary cached');
-        }
-      }
-    } catch (err) {
-      console.warn('[Background] Editorial summary failed (non-fatal):', err);
-    }
 
     // Fire callback if provided
     if (briefRecord?.callback_url) {
