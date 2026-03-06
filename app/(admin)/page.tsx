@@ -10,7 +10,7 @@ type BriefType = 'shopify' | 'local' | 'default';
 export default function Home() {
   const router = useRouter();
   const [url, setUrl] = useState('');
-  const [briefType, setBriefType] = useState<BriefType>('default');
+  const [briefType, setBriefType] = useState<BriefType>('shopify');
   const [state, setState] = useState<AppState>('input');
   const [error, setError] = useState('');
 
@@ -113,8 +113,8 @@ export default function Home() {
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg bg-white"
                 >
                   <option value="default">Default</option>
-                  <option value="shopify">Shopify / Ecommerce</option>
-                  <option value="local">Local / Service Business</option>
+                  <option value="shopify">Ecommerce</option>
+                  <option value="local">Local</option>
                 </select>
               </div>
 

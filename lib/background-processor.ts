@@ -9,8 +9,23 @@ import { buildSystemPrompt, buildGenerationPrompt, buildLocalGenerationPrompt, b
 import { validateCreativeBrief, sanitizeEmDashes } from './validation';
 import { cleanupCrawlResult, convertToLegacyFormat } from './crawl-cleanup';
 import { CrawlResult, AIProvider, CreativeBrief, Deliverables } from './types';
-import { generateAvatarImages, generateMagazinePages, generateCampaignImages, MagazineImageGenerationResult } from './image-generator';
-import { saveMagazineImages, saveCampaignImages } from './image-storage';
+import {
+  generateAvatarWithFallback,
+  generateImage,
+  buildCoverPagePrompt,
+  buildBrandTruthPagePrompt,
+  buildMarketContextPagePrompt,
+  buildProblemPagePrompt,
+  buildTransformationPagePrompt,
+  buildProofPillarsPagePrompt,
+  buildOfferPagePrompt,
+  buildMessagingPagePrompt,
+  buildCreativeDirectionPagePrompt,
+  buildBackCoverPagePrompt,
+  buildFacebookAdImagePrompt,
+  buildStoryboardFramePrompt,
+} from './image-generator';
+import { saveImagePermanently } from './image-storage';
 
 interface ProcessOptions {
   briefId: string;
@@ -185,9 +200,9 @@ export async function processBriefGeneration(options: ProcessOptions) {
     const briefType = briefRecord?.metadata?.type as 'local' | 'shopify' | undefined;
     console.log(`[Background] Brief type: ${briefType || 'default'}`);
 
-    // Stage 1: Prepare content (30-44%)
+    // Stage 1: Prepare content (45%)
     await updateBriefStatus(briefId, {
-      progress: 30,
+      progress: 45,
       current_task: 'Preparing content',
       log: 'Cleaning and normalizing crawl data...',
     });
@@ -216,7 +231,7 @@ export async function processBriefGeneration(options: ProcessOptions) {
     }
 
     await updateBriefStatus(briefId, {
-      progress: 45,
+      progress: 50,
       current_task: 'Generating brief',
       log: `Sending to ${provider} (${model}) — system: ${systemPrompt.length} chars, prompt: ${generationPrompt.length} chars`,
     });
@@ -245,12 +260,17 @@ export async function processBriefGeneration(options: ProcessOptions) {
 
     await updateBriefStatus(briefId, {
       progress: 70,
-      current_task: 'Generating deliverables',
+      current_task: 'Brief complete',
       log: `Brief generated with ${brief.avatars.length} avatars — starting deliverables...`,
     });
 
     // Stage 3: Deliverables only (no images yet)
     const deliverablesPrompt = buildDeliverablesPrompt(JSON.stringify(brief, null, 2));
+    await updateBriefStatus(briefId, {
+      progress: 72,
+      current_task: 'Generating deliverables',
+      log: 'Sending deliverables prompt to AI...',
+    });
     const nanoBananaKey = process.env.NANOBANANA_API_KEY;
     const imageModel = 'gemini-2.5-flash-image';
     const businessName = (() => {
@@ -268,7 +288,7 @@ export async function processBriefGeneration(options: ProcessOptions) {
 
     await updateBriefStatus(briefId, {
       progress: 82,
-      current_task: 'Generating deliverables',
+      current_task: 'Deliverables complete',
       log: 'Deliverables ready — parsing...',
     });
 
@@ -290,12 +310,13 @@ export async function processBriefGeneration(options: ProcessOptions) {
       };
     }
 
-    // Stage 4: Avatar generation (83-89) — start editorial summary concurrently
+    // Stage 4 & 5: Avatar + section image generation with immediate per-image saves (83-94)
+    // Each image is saved to Supabase Storage as soon as it arrives from NanoBanana.
     await updateBriefStatus(briefId, {
       progress: 83,
       current_task: 'Generating avatars',
       log: nanoBananaKey && imageSlots.avatars
-        ? 'Generating avatar images...'
+        ? 'Generating avatar images — each saved immediately on arrival...'
         : 'Skipping avatar images — slot disabled or no API key',
     });
 
@@ -341,13 +362,43 @@ export async function processBriefGeneration(options: ProcessOptions) {
       }
     })();
 
-    // Avatar generation — failure is non-fatal
-    let avatarUrls: [string, string, string] | null = null;
+    const storageFolder = briefRecord?.public_slug ?? briefId;
+    let savedImages: object | undefined;
+    let imageCredits: number | undefined;
+    let imageCostUsd: number | undefined;
+
+    // Helper: generate one image then immediately save to permanent storage.
+    // Returns the permanent URL, or '' on failure (non-fatal).
+    const genAndSave = (prompt: string, imageType: string, size: string = '1:1'): Promise<string> =>
+      generateImage(prompt, imageModel, size)
+        .then((tempUrl) => saveImagePermanently(tempUrl, storageFolder, imageType))
+        .catch((err) => {
+          console.error(`[Background] Image failed (${imageType}):`, err);
+          return '';
+        });
+
+    // Avatar generation — each generated image is saved immediately.
+    // avatarPermUrls holds the permanent URLs (or '' on failure).
+    let avatarPermUrls: [string, string, string] | null = null;
     if (nanoBananaKey && imageSlots.avatars) {
       try {
-        avatarUrls = await generateAvatarImages(brief, businessName, imageModel);
-        console.log('[Background] Avatar images generated successfully');
-        await updateBriefStatus(briefId, { log: 'Avatar images generated' });
+        const [a1, a2, a3] = await Promise.all([
+          generateAvatarWithFallback(brief.avatars[0], businessName, imageModel)
+            .then((url) => saveImagePermanently(url, storageFolder, 'avatar_primary'))
+            .catch((err) => { console.error('[Background] Avatar 1 failed:', err); return ''; }),
+          generateAvatarWithFallback(brief.avatars[1], businessName, imageModel)
+            .then((url) => saveImagePermanently(url, storageFolder, 'avatar_secondary'))
+            .catch((err) => { console.error('[Background] Avatar 2 failed:', err); return ''; }),
+          generateAvatarWithFallback(brief.avatars[2], businessName, imageModel)
+            .then((url) => saveImagePermanently(url, storageFolder, 'avatar_tertiary'))
+            .catch((err) => { console.error('[Background] Avatar 3 failed:', err); return ''; }),
+        ]);
+        avatarPermUrls = [a1, a2, a3];
+        brief.avatars[0].generatedImageUrl = a1;
+        brief.avatars[1].generatedImageUrl = a2;
+        brief.avatars[2].generatedImageUrl = a3;
+        console.log('[Background] Avatar images generated and saved');
+        await updateBriefStatus(briefId, { log: 'Avatar images generated and saved to storage' });
       } catch (avatarError) {
         const avatarErrMsg = avatarError instanceof Error ? avatarError.message : String(avatarError);
         console.error('[Background] Avatar generation failed (brief will complete without images):', avatarError);
@@ -359,11 +410,11 @@ export async function processBriefGeneration(options: ProcessOptions) {
       console.log('[Background] Avatar slot disabled — skipping avatar generation');
     }
 
-    // Stage 5b: Section images using avatars as reference (90-94)
+    // Stage 5: Section images — generate and save each one immediately as it arrives (90-94)
     await updateBriefStatus(briefId, {
       progress: 90,
       current_task: 'Generating section images',
-      log: 'Generating magazine pages and campaign images in parallel...',
+      log: 'Generating magazine pages and campaign images — each saved immediately on arrival...',
     });
 
     // Determine if any booklet-only slot is enabled
@@ -383,91 +434,137 @@ export async function processBriefGeneration(options: ProcessOptions) {
       imageSlots['pages.offer'] ||
       imageSlots.backCover;
 
-    const [magazinePagesResult, campaignImagesResult] = await Promise.allSettled([
-      // Magazine pages (needs brief + avatarUrls)
-      nanoBananaKey && avatarUrls && anyMagazineSlotEnabled
-        ? generateMagazinePages(brief, businessName, avatarUrls, imageModel)
-        : Promise.resolve(null),
-      // Campaign images (needs deliverables)
-      nanoBananaKey &&
-        (imageSlots.facebookImages || imageSlots.storyboardFrames) &&
-        Array.isArray(deliverables.facebookCampaigns) &&
-        (deliverables.facebookCampaigns as Array<unknown>).length >= 3 &&
-        deliverables.video8s
-        ? generateCampaignImages(deliverables, businessName)
-        : Promise.resolve(null),
-    ]);
-
-    const magazinePages = magazinePagesResult.status === 'fulfilled' ? magazinePagesResult.value : null;
-    const campaignImagesData = campaignImagesResult.status === 'fulfilled' ? campaignImagesResult.value : null;
-
-    if (magazinePagesResult.status === 'rejected') {
-      console.error('[Background] Magazine page generation failed (non-fatal):', magazinePagesResult.reason);
-    } else if (magazinePages) {
-      console.log('[Background] Magazine pages generated successfully');
-    }
-
-    if (campaignImagesResult.status === 'rejected') {
-      console.error('[Background] Campaign image generation failed (non-fatal):', campaignImagesResult.reason);
-    } else if (campaignImagesData) {
-      console.log('[Background] Campaign images generated successfully');
-    }
-
-    await updateBriefStatus(briefId, {
-      progress: 95,
-      current_task: 'Saving images',
-      log: 'Section image generation complete — saving to storage...',
-    });
-
-    // Stage 6: Save images to Supabase Storage
-    let savedImages: object | undefined;
-    let imageCredits: number | undefined;
-    let imageCostUsd: number | undefined;
-
-    const storageFolder = briefRecord?.public_slug ?? briefId;
-
-    if (nanoBananaKey && avatarUrls && magazinePages) {
+    // Magazine pages: each promise is generate → immediately save → permanent URL
+    const magazinePagesPromise: Promise<{
+      cover: string;
+      pages: {
+        brandTruth: string; marketContext: string; problem: string;
+        transformation: string; proofPillars: string; offer: string;
+        messaging: string; creativeDirection: string;
+      };
+      backCover: string;
+    } | null> = (async () => {
+      if (!nanoBananaKey || !avatarPermUrls || !anyMagazineSlotEnabled) return null;
       try {
-        const creditsPerImage = 2; // gemini-2.5-flash-image
-        imageCredits = 13 * creditsPerImage;
-        imageCostUsd = parseFloat((imageCredits * 0.01).toFixed(4));
-
-        // Only include image slots that are enabled
-        const tempImages = {
-          cover: imageSlots.cover ? magazinePages.cover : undefined,
-          avatars: imageSlots.avatars ? avatarUrls : undefined,
-          pages: {
-            brandTruth:        imageSlots['pages.brandTruth']        ? magazinePages.pages.brandTruth        : undefined,
-            marketContext:     imageSlots['pages.marketContext']     ? magazinePages.pages.marketContext     : undefined,
-            problem:           imageSlots['pages.problem']           ? magazinePages.pages.problem           : undefined,
-            transformation:    imageSlots['pages.transformation']    ? magazinePages.pages.transformation    : undefined,
-            proofPillars:      imageSlots['pages.proofPillars']      ? magazinePages.pages.proofPillars      : undefined,
-            offer:             imageSlots['pages.offer']             ? magazinePages.pages.offer             : undefined,
-            messaging:         imageSlots['pages.messaging']         ? magazinePages.pages.messaging         : undefined,
-            creativeDirection: imageSlots['pages.creativeDirection'] ? magazinePages.pages.creativeDirection : undefined,
-          },
-          backCover: imageSlots.backCover ? magazinePages.backCover : undefined,
-          generationTimeMs: 0,
-          creditsUsed: imageCredits,
-          imageCostUsd,
-        } as unknown as MagazineImageGenerationResult;
-
-        savedImages = await saveMagazineImages(storageFolder, tempImages);
-        console.log(`[Background] ✅ Magazine images saved — ${imageCredits} credits ($${imageCostUsd})`);
-      } catch (imgError) {
-        console.error('[Background] Magazine image save failed (non-fatal):', imgError);
+        const [
+          cover, brandTruth, marketContext, problem,
+          transformation, proofPillars, offer, messaging,
+          creativeDirection, backCover,
+        ] = await Promise.all([
+          imageSlots.cover
+            ? genAndSave(buildCoverPagePrompt(brief, businessName), 'page_cover')
+            : Promise.resolve(''),
+          imageSlots['pages.brandTruth']
+            ? genAndSave(buildBrandTruthPagePrompt(brief), 'page_brand_truth')
+            : Promise.resolve(''),
+          imageSlots['pages.marketContext']
+            ? genAndSave(buildMarketContextPagePrompt(brief), 'page_market_context')
+            : Promise.resolve(''),
+          imageSlots['pages.problem']
+            ? genAndSave(buildProblemPagePrompt(brief), 'page_problem')
+            : Promise.resolve(''),
+          imageSlots['pages.transformation']
+            ? genAndSave(buildTransformationPagePrompt(brief), 'page_transformation')
+            : Promise.resolve(''),
+          imageSlots['pages.proofPillars']
+            ? genAndSave(buildProofPillarsPagePrompt(brief), 'page_proof_pillars')
+            : Promise.resolve(''),
+          imageSlots['pages.offer']
+            ? genAndSave(buildOfferPagePrompt(brief), 'page_offer')
+            : Promise.resolve(''),
+          imageSlots['pages.messaging']
+            ? genAndSave(buildMessagingPagePrompt(brief), 'page_messaging')
+            : Promise.resolve(''),
+          imageSlots['pages.creativeDirection']
+            ? genAndSave(buildCreativeDirectionPagePrompt(brief), 'page_creative_direction')
+            : Promise.resolve(''),
+          imageSlots.backCover
+            ? genAndSave(buildBackCoverPagePrompt(businessName, brief.callToAction), 'page_back_cover')
+            : Promise.resolve(''),
+        ]);
+        console.log('[Background] Magazine pages generated and saved');
+        return {
+          cover,
+          pages: { brandTruth, marketContext, problem, transformation, proofPillars, offer, messaging, creativeDirection },
+          backCover,
+        };
+      } catch (err) {
+        console.error('[Background] Magazine page generation failed (non-fatal):', err);
+        return null;
       }
+    })();
+
+    // Campaign images: each generate → immediately save → permanent URL
+    const campaignImagesPromise: Promise<{ facebookImages: [string, string, string]; storyboardFrames: [string, string, string] } | null> = (async () => {
+      const campaigns = Array.isArray(deliverables.facebookCampaigns) ? deliverables.facebookCampaigns : [];
+      const video8s = deliverables.video8s;
+      if (
+        !nanoBananaKey ||
+        (!imageSlots.facebookImages && !imageSlots.storyboardFrames) ||
+        campaigns.length < 3 ||
+        !video8s
+      ) return null;
+      try {
+        const [fb1, fb2, fb3, sb1, sb2, sb3] = await Promise.all([
+          imageSlots.facebookImages
+            ? genAndSave(buildFacebookAdImagePrompt(campaigns[0], businessName), 'fb_ad_primary')
+            : Promise.resolve(''),
+          imageSlots.facebookImages
+            ? genAndSave(buildFacebookAdImagePrompt(campaigns[1], businessName), 'fb_ad_secondary')
+            : Promise.resolve(''),
+          imageSlots.facebookImages
+            ? genAndSave(buildFacebookAdImagePrompt(campaigns[2], businessName), 'fb_ad_tertiary')
+            : Promise.resolve(''),
+          imageSlots.storyboardFrames
+            ? genAndSave(buildStoryboardFramePrompt(video8s.recognition, 'Recognition', businessName), 'storyboard_recognition', '16:9')
+            : Promise.resolve(''),
+          imageSlots.storyboardFrames
+            ? genAndSave(buildStoryboardFramePrompt(video8s.proofInContext, 'Proof in Context', businessName), 'storyboard_proof', '16:9')
+            : Promise.resolve(''),
+          imageSlots.storyboardFrames
+            ? genAndSave(buildStoryboardFramePrompt(video8s.beliefLock, 'Belief Lock', businessName), 'storyboard_belief', '16:9')
+            : Promise.resolve(''),
+        ]);
+        console.log('[Background] Campaign images generated and saved');
+        await updateBriefStatus(briefId, { log: 'Campaign images generated and saved to storage' });
+        return {
+          facebookImages: [fb1, fb2, fb3] as [string, string, string],
+          storyboardFrames: [sb1, sb2, sb3] as [string, string, string],
+        };
+      } catch (err) {
+        console.error('[Background] Campaign image generation failed (non-fatal):', err);
+        return null;
+      }
+    })();
+
+    const [magazinePages, campaignImagesData] = await Promise.all([magazinePagesPromise, campaignImagesPromise]);
+
+    // Assemble savedImages from permanent URLs already in place
+    if (nanoBananaKey && avatarPermUrls && magazinePages) {
+      const creditsPerImage = 2; // gemini-2.5-flash-image
+      imageCredits = 13 * creditsPerImage;
+      imageCostUsd = parseFloat((imageCredits * 0.01).toFixed(4));
+
+      savedImages = {
+        cover: magazinePages.cover || undefined,
+        avatars: avatarPermUrls,
+        pages: {
+          brandTruth:        magazinePages.pages.brandTruth        || undefined,
+          marketContext:     magazinePages.pages.marketContext     || undefined,
+          problem:           magazinePages.pages.problem           || undefined,
+          transformation:    magazinePages.pages.transformation    || undefined,
+          proofPillars:      magazinePages.pages.proofPillars      || undefined,
+          offer:             magazinePages.pages.offer             || undefined,
+          messaging:         magazinePages.pages.messaging         || undefined,
+          creativeDirection: magazinePages.pages.creativeDirection || undefined,
+        },
+        backCover: magazinePages.backCover || undefined,
+      };
+      console.log(`[Background] Magazine images complete — ${imageCredits} credits ($${imageCostUsd})`);
     }
 
     if (campaignImagesData) {
-      try {
-        const savedCampaignImages = await saveCampaignImages(storageFolder, campaignImagesData);
-        savedImages = { ...(savedImages as object ?? {}), ...savedCampaignImages };
-        await updateBriefStatus(briefId, { log: 'Campaign images saved' });
-        console.log('[Background] ✅ Campaign images saved');
-      } catch (campaignSaveError) {
-        console.error('[Background] Campaign image save failed (non-fatal):', campaignSaveError);
-      }
+      savedImages = { ...(savedImages as object ?? {}), ...campaignImagesData };
     }
 
     // Sanitize
@@ -501,7 +598,7 @@ export async function processBriefGeneration(options: ProcessOptions) {
     await updateBriefStatus(briefId, {
       progress: 99,
       current_task: 'Finalising',
-      log: 'Images saved — awaiting editorial summary...',
+      log: 'Images complete — awaiting editorial summary...',
     });
 
     // Await editorial summary (fired concurrently with avatar generation)

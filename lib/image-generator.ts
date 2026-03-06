@@ -118,42 +118,42 @@ function buildProofPillarsImagePrompt(brief: CreativeBrief): string {
 /**
  * Builds cover page prompt
  */
-function buildCoverPagePrompt(brief: CreativeBrief, businessName: string): string {
+export function buildCoverPagePrompt(brief: CreativeBrief, businessName: string): string {
   return `Modern comic book cover illustration. A confident professional figure in hero pose with city skyline behind. Large bold title "${businessName.toUpperCase()}" at top. Subtitle "CREATIVE BRIEF" below. Modern graphic novel style, vibrant but professional colors, magazine quality. 1:1 square format.`.trim();
 }
 
 /**
  * Builds Brand Truth page prompt
  */
-function buildBrandTruthPagePrompt(brief: CreativeBrief): string {
+export function buildBrandTruthPagePrompt(brief: CreativeBrief): string {
   return `Modern comic panel: a professional figure experiencing a revelation moment, discovering "${brief.brandTruth.substring(0, 100)}". Scene: modern office or workspace, lightbulb moment, confident expression. Top banner "BRAND TRUTH". Style: modern graphic novel, clean lines, soft pastels. 1:1 square.`.trim();
 }
 
 /**
  * Builds Market Context page prompt
  */
-function buildMarketContextPagePrompt(brief: CreativeBrief): string {
+export function buildMarketContextPagePrompt(brief: CreativeBrief): string {
   return `Modern comic panel: a professional figure analyzing the market, viewing charts, graphs, or competitive landscape. Scene represents: "${brief.marketContext.substring(0, 100)}". Professional business setting. Top banner "MARKET LANDSCAPE". Style: modern graphic novel, blues and golds. 1:1 square.`.trim();
 }
 
 /**
  * Builds Problem page prompt
  */
-function buildProblemPagePrompt(brief: CreativeBrief): string {
+export function buildProblemPagePrompt(brief: CreativeBrief): string {
   return `Modern comic panel: a professional figure struggling with: "${brief.humanProblem.substring(0, 100)}". Worried expression, thought bubbles with concerns, stressed posture. Dark muted background. Top banner "THE CHALLENGE". Style: empathetic, professional, clean lines. 1:1 square.`.trim();
 }
 
 /**
  * Builds Transformation page prompt
  */
-function buildTransformationPagePrompt(brief: CreativeBrief): string {
+export function buildTransformationPagePrompt(brief: CreativeBrief): string {
   return `Modern comic 2-panel split illustration. LEFT PANEL: a professional figure struggling (${brief.beforeState.substring(0, 80)}), muted colors, stressed expression. RIGHT PANEL: same figure succeeding (${brief.afterState.substring(0, 80)}), vibrant colors, confident posture. Large arrow between panels. Top banner "TRANSFORMATION". 1:1 square.`.trim();
 }
 
 /**
  * Builds Proof Pillars page prompt
  */
-function buildProofPillarsPagePrompt(brief: CreativeBrief): string {
+export function buildProofPillarsPagePrompt(brief: CreativeBrief): string {
   const pillarsText = brief.proofPillars
     .map((p, i) => `${i + 1}. ${p.claim.substring(0, 30)}`)
     .join(', ');
@@ -164,14 +164,14 @@ function buildProofPillarsPagePrompt(brief: CreativeBrief): string {
 /**
  * Builds Offer page prompt
  */
-function buildOfferPagePrompt(brief: CreativeBrief): string {
+export function buildOfferPagePrompt(brief: CreativeBrief): string {
   return `Modern comic panel: a professional figure presenting the solution/offer with confident gesture, pointing to offer details: "${brief.offer.substring(0, 100)}". Call-to-action energy. Top banner "THE OFFER". Modern business presentation style. 1:1 square.`.trim();
 }
 
 /**
  * Builds Messaging page prompt
  */
-function buildMessagingPagePrompt(brief: CreativeBrief): string {
+export function buildMessagingPagePrompt(brief: CreativeBrief): string {
   const rulesText = brief.messagingRules.slice(0, 3).join(', ');
 
   return `Modern comic panel: a professional figure communicating a message with speech bubbles and confident stance. Messaging rules visible: "${rulesText}". Top banner "MESSAGING FRAMEWORK". Professional communicator style. 1:1 square.`.trim();
@@ -180,29 +180,29 @@ function buildMessagingPagePrompt(brief: CreativeBrief): string {
 /**
  * Builds Creative Direction page prompt (pure visual showcase)
  */
-function buildCreativeDirectionPagePrompt(brief: CreativeBrief): string {
+export function buildCreativeDirectionPagePrompt(brief: CreativeBrief): string {
   return `Visual style showcase for creative direction: ${brief.visualStyle.substring(0, 150)}. Modern brand identity board with color swatches, typography samples, visual elements. Top banner "CREATIVE DIRECTION". Professional design presentation. 1:1 square.`.trim();
 }
 
 /**
  * Builds Back Cover page prompt (CTA and branding)
  */
-function buildBackCoverPagePrompt(businessName: string, cta: string): string {
+export function buildBackCoverPagePrompt(businessName: string, cta: string): string {
   return `Comic book back cover design. Bold text "NEXT STEPS" at top. Call-to-action: "${cta.substring(0, 100)}". Business name "${businessName}" at bottom. Modern magazine back cover style, professional finish. 1:1 square.`.trim();
 }
 
-function buildFacebookAdImagePrompt(campaign: FacebookCampaign, businessName: string): string {
+export function buildFacebookAdImagePrompt(campaign: FacebookCampaign, businessName: string): string {
   return `Modern digital advertising visual: ${campaign.visualDirection.substring(0, 200)}. Business: ${businessName}. Campaign objective: ${campaign.objective}. Target audience: ${campaign.targetAvatar} customer. Style: clean, professional, high-contrast, social media ready, lifestyle photography aesthetic. Square format 1:1.`.trim();
 }
 
-function buildStoryboardFramePrompt(section: Video8sSection, _sectionName: string, businessName: string): string {
+export function buildStoryboardFramePrompt(section: Video8sSection, _sectionName: string, businessName: string): string {
   return `${section.visualDirection.substring(0, 300)}. Business: ${businessName}. 16:9 cinematic landscape, photorealistic, film production quality.`.trim();
 }
 
 /**
  * Generates a single image using NanoBanana API
  */
-async function generateImage(prompt: string, model: string = 'gemini-3-pro-image-preview', imageSize: string = '1:1'): Promise<string> {
+export async function generateImage(prompt: string, model: string = 'gemini-3-pro-image-preview', imageSize: string = '1:1'): Promise<string> {
   const apiKey = process.env.NANOBANANA_API_KEY;
   if (!apiKey) {
     throw new Error('NANOBANANA_API_KEY not configured');
@@ -264,7 +264,7 @@ function buildAvatarFallbackPrompt(avatar: Avatar, briefContext: string): string
  * Generates a single avatar image with automatic fallback to a simpler prompt
  * if the full prompt triggers Gemini's content filter.
  */
-async function generateAvatarWithFallback(
+export async function generateAvatarWithFallback(
   avatar: Avatar,
   businessName: string,
   model: string

@@ -60,23 +60,16 @@ const STEPS: Step[] = [
   },
   {
     key: 'avatars',
-    label: 'Generating avatars',
-    description: 'Creating 3 character images',
+    label: 'Generating & saving avatars',
+    description: 'Creating 3 character images — each saved to storage immediately',
     rangeStart: 83,
     rangeEnd: 89,
   },
   {
     key: 'section-images',
-    label: 'Generating section images',
-    description: 'Section images using avatars as reference',
+    label: 'Generating & saving section images',
+    description: 'Section images generated and saved to permanent storage as they arrive',
     rangeStart: 90,
-    rangeEnd: 94,
-  },
-  {
-    key: 'saving-images',
-    label: 'Saving images',
-    description: 'Uploading to permanent storage',
-    rangeStart: 95,
     rangeEnd: 98,
   },
   {
@@ -195,11 +188,21 @@ export default function BriefStatusPage({ params }: PageProps) {
     loadInitial();
   }, [slug]);
 
-  // Poll /api/brief/[slug]/status every 3 seconds while processing
+  // Track current status in a ref so the polling interval can read it without
+  // needing to be recreated every time status changes (which caused poll gaps).
+  const statusRef = useRef(briefStatus?.status);
   useEffect(() => {
-    if (!briefStatus || briefStatus.status !== 'processing') return;
+    statusRef.current = briefStatus?.status;
+  }, [briefStatus?.status]);
 
+  // Poll /api/brief/[slug]/status every 2 seconds while processing.
+  // Only depends on [slug] — uses statusRef to decide when to stop.
+  useEffect(() => {
     const interval = setInterval(async () => {
+      if (statusRef.current !== 'processing') {
+        clearInterval(interval);
+        return;
+      }
       try {
         const res = await fetch(`/api/brief/${slug}/status`);
         if (!res.ok) return;
@@ -219,10 +222,10 @@ export default function BriefStatusPage({ params }: PageProps) {
       } catch {
         // Silently ignore transient network errors
       }
-    }, 3000);
+    }, 2000);
 
     return () => clearInterval(interval);
-  }, [slug, briefStatus?.status]);
+  }, [slug]);
 
   // Auto-redirect 3 seconds after completion
   useEffect(() => {
@@ -236,7 +239,7 @@ export default function BriefStatusPage({ params }: PageProps) {
 
     redirectTimerRef.current = setTimeout(() => {
       if (!skipRedirect) {
-        router.push(`/brief/${slug}`);
+        router.push(`/creative-strategy-brief/${slug}`);
       }
     }, 3000);
 
@@ -378,7 +381,7 @@ export default function BriefStatusPage({ params }: PageProps) {
             </div>
             <div className="flex flex-wrap gap-3 mb-4">
               <a
-                href={`/brief/${slug}`}
+                href={`/creative-strategy-brief/${slug}`}
                 className="bg-white text-slate-900 text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-slate-100 transition-colors"
               >
                 View Brief
