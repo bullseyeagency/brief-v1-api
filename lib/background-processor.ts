@@ -448,7 +448,7 @@ export async function processBriefGeneration(options: ProcessOptions) {
           generationTimeMs: 0,
           creditsUsed: imageCredits,
           imageCostUsd,
-        } as MagazineImageGenerationResult;
+        } as unknown as MagazineImageGenerationResult;
 
         savedImages = await saveMagazineImages(storageFolder, tempImages);
         console.log(`[Background] ✅ Magazine images saved — ${imageCredits} credits ($${imageCostUsd})`);
